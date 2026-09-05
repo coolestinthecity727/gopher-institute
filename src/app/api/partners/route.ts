@@ -2,21 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies, isStaff } from "@/lib/auth";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET() {
+  const partners = await prisma.partner.findMany({ orderBy: [{ isMinistry: "desc" }, { createdAt: "asc" }] });
+  return NextResponse.json({ partners });
+}
+
+export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const body = await req.json();
-  const partner = await prisma.partner.update({ where: { id: params.id }, data: body });
-  return NextResponse.json({ partner });
-}
-
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = getSessionFromCookies();
-  if (!session || !isStaff(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { name, description, logoUrl, website, isMinistry } = body;
+  if (!name || !description) {
+    return NextResponse.json({ error: "Name and description are required." }, { status: 400 });
   }
-  await prisma.partner.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+  const partner = await prisma.partner.create({
+    data: { name, description, logoUrl: logoUrl || null, website: website || null, isMinistry: !!isMinistry },
+  });
+  return NextResponse.json({ partner }, { status: 201 });
 }

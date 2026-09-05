@@ -1,56 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionFromCookies, isStaff } from "@/lib/auth";
+import { generateStudentNumber } from "@/lib/ids";
+
+export async function GET(req: NextRequest) {
+  const session = getSessionFromCookies();
+  if (!session || !isStaff(session.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const q = searchParams.get("q");
+
+  const students = await prisma.student.findMany({
+    where: {
+      ...(status ? { status: status as any } : {}),
+      ...(q
+        ? { OR: [{ fullName: { contains: q } }, { studentNumber: { contains: q } }, { email: { contains: q } }] }
+        : {}),
+    },
+    include: { course: true, certificates: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json({ students });
+}
 
 export async function POST(req: NextRequest) {
-  const { reference, nationalId } = await req.json();
-  if (!reference) {
-    return NextResponse.json({ error: "Enter a student number or application number." }, { status: 400 });
+  const session = getSessionFromCookies();
+  if (!session || !isStaff(session.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const ref = String(reference).trim();
-
-  // Try as a student number first (current or past students).
-  const student = await prisma.student.findUnique({
-    where: { studentNumber: ref },
-    include: { course: true },
+  const { fullName, email, phone, courseId, status } = await req.json();
+  if (!fullName || !email || !courseId) {
+    return NextResponse.json({ error: "Full name, email and programme are required." }, { status: 400 });
+  }
+  const student = await prisma.student.create({
+    data: {
+      studentNumber: generateStudentNumber(),
+      fullName,
+      email,
+      phone: phone || "",
+      courseId,
+      status: status || "CURRENT",
+    },
   });
-
-  if (student) {
-    return NextResponse.json({
-      found: true,
-      type: "student",
-      record: {
-        studentNumber: student.studentNumber,
-        fullName: student.fullName,
-        course: student.course.name,
-        status: student.status,
-        enrollmentDate: student.enrollmentDate,
-        graduationDate: student.graduationDate,
-      },
-    });
-  }
-
-  // Fall back to application number, for applicants awaiting a decision.
-  const application = await prisma.application.findUnique({
-    where: { applicationNo: ref },
-    include: { course: true },
-  });
-
-  if (application) {
-    if (nationalId && application.nationalId !== String(nationalId).trim()) {
-      return NextResponse.json({ found: false, message: "No matching record found for these details." });
-    }
-    return NextResponse.json({
-      found: true,
-      type: "application",
-      record: {
-        applicationNo: application.applicationNo,
-        fullName: application.fullName,
-        course: application.course.name,
-        status: application.status,
-        submittedAt: application.submittedAt,
-      },
-    });
-  }
-
-  return NextResponse.json({ found: false, message: "No matching record found for these details." });
+  return NextResponse.json({ student }, { status: 201 });
 }

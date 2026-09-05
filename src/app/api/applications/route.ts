@@ -1,68 +1,102 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { generateApplicationNo } from "@/lib/ids";
 import { getSessionFromCookies, isStaff } from "@/lib/auth";
-import { generateStudentNumber } from "@/lib/ids";
-import { sendEmail, applicationStatusEmail } from "@/lib/email";
+import { sendEmail, applicationReceivedEmail } from "@/lib/email";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = getSessionFromCookies();
-  if (!session || !isStaff(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const applicationSchema = z.object({
+  fullName: z.string().min(2),
+  email: z.string().email(),
+  phone: z.string().min(5),
+  nationalId: z.string().min(3),
+  dateOfBirth: z.string().min(4),
+  gender: z.string().min(1),
+  address: z.string().min(3),
+  guardianName: z.string().optional().default(""),
+  guardianPhone: z.string().optional().default(""),
+  highestQualification: z.string().min(1),
+  courseId: z.string().min(1),
+  idDocumentUrl: z.string().optional().default(""),
+  transcriptUrl: z.string().optional().default(""),
+});
 
-  const body = await req.json();
-  const { status, reviewNotes } = body as { status?: string; reviewNotes?: string };
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const parsed = applicationSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Please check that all required fields are filled in correctly." }, { status: 400 });
+    }
+    const data = parsed.data;
 
-  const application = await prisma.application.findUnique({ where: { id: params.id } });
-  if (!application) return NextResponse.json({ error: "Application not found" }, { status: 404 });
+    const course = await prisma.course.findUnique({ where: { id: data.courseId } });
+    if (!course) return NextResponse.json({ error: "Selected programme was not found." }, { status: 400 });
 
-  const updated = await prisma.application.update({
-    where: { id: params.id },
-    data: {
-      ...(status ? { status: status as any } : {}),
-      ...(reviewNotes !== undefined ? { reviewNotes } : {}),
-      reviewedAt: new Date(),
-    },
-  });
+    const applicationNo = generateApplicationNo();
 
-  if (status && status !== application.status) {
+    const application = await prisma.application.create({
+      data: {
+        applicationNo,
+        fullName: data.fullName,
+        email: data.email,
+        phone: data.phone,
+        nationalId: data.nationalId,
+        dateOfBirth: new Date(data.dateOfBirth),
+        gender: data.gender,
+        address: data.address,
+        guardianName: data.guardianName || null,
+        guardianPhone: data.guardianPhone || null,
+        highestQualification: data.highestQualification,
+        courseId: data.courseId,
+        idDocumentUrl: data.idDocumentUrl || null,
+        transcriptUrl: data.transcriptUrl || null,
+      },
+    });
+
     await sendEmail({
       to: application.email,
-      subject: `Application Update — ${application.applicationNo}`,
-      html: applicationStatusEmail({
+      subject: `Application Received — ${application.applicationNo}`,
+      html: applicationReceivedEmail({
         fullName: application.fullName,
         applicationNo: application.applicationNo,
-        status,
+        courseName: course.name,
       }),
     });
-  }
 
-  // Automatically create a Student record once an application is marked ENROLLED.
-  if (status === "ENROLLED") {
-    const existingStudent = await prisma.student.findUnique({ where: { applicationId: application.id } });
-    if (!existingStudent) {
-      await prisma.student.create({
-        data: {
-          studentNumber: generateStudentNumber(),
-          applicationId: application.id,
-          fullName: application.fullName,
-          email: application.email,
-          phone: application.phone,
-          courseId: application.courseId,
-          status: "CURRENT",
-        },
-      });
-    }
+    return NextResponse.json({ applicationNo: application.applicationNo }, { status: 201 });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ error: "Unable to submit application. Please try again." }, { status: 500 });
   }
-
-  return NextResponse.json({ application: updated });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  await prisma.application.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const q = searchParams.get("q");
+
+  const applications = await prisma.application.findMany({
+    where: {
+      ...(status ? { status: status as any } : {}),
+      ...(q
+        ? {
+            OR: [
+              { fullName: { contains: q } },
+              { applicationNo: { contains: q } },
+              { email: { contains: q } },
+            ],
+          }
+        : {}),
+    },
+    include: { course: true },
+    orderBy: { submittedAt: "desc" },
+  });
+
+  return NextResponse.json({ applications });
 }

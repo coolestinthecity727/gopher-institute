@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies, isStaff } from "@/lib/auth";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+export async function GET() {
+  const posts = await prisma.post.findMany({ orderBy: { createdAt: "desc" } });
+  return NextResponse.json({ posts });
+}
+
+export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -10,28 +22,27 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json();
   const { title, category, summary, content, imageUrl, eventDate, location, published } = body;
 
-  const post = await prisma.post.update({
-    where: { id: params.id },
+  if (!title || !summary || !content || !category) {
+    return NextResponse.json({ error: "Title, category, summary and content are required." }, { status: 400 });
+  }
+
+  let slug = slugify(title);
+  const existing = await prisma.post.findUnique({ where: { slug } });
+  if (existing) slug = `${slug}-${Date.now().toString(36)}`;
+
+  const post = await prisma.post.create({
     data: {
-      ...(title !== undefined ? { title } : {}),
-      ...(category !== undefined ? { category } : {}),
-      ...(summary !== undefined ? { summary } : {}),
-      ...(content !== undefined ? { content } : {}),
-      ...(imageUrl !== undefined ? { imageUrl } : {}),
-      ...(eventDate !== undefined ? { eventDate: eventDate ? new Date(eventDate) : null } : {}),
-      ...(location !== undefined ? { location } : {}),
-      ...(published !== undefined ? { published } : {}),
+      title,
+      slug,
+      category,
+      summary,
+      content,
+      imageUrl: imageUrl || null,
+      eventDate: eventDate ? new Date(eventDate) : null,
+      location: location || null,
+      published: published ?? true,
     },
   });
 
-  return NextResponse.json({ post });
-}
-
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = getSessionFromCookies();
-  if (!session || !isStaff(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  await prisma.post.delete({ where: { id: params.id } });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ post }, { status: 201 });
 }

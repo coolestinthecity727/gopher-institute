@@ -2,23 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies, isStaff } from "@/lib/auth";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const session = getSessionFromCookies();
-  if (!session || !isStaff(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const body = await req.json();
-  if (body.fee !== undefined) body.fee = Number(body.fee) || 0;
-  const course = await prisma.course.update({ where: { id: params.id }, data: body });
-  return NextResponse.json({ course });
+export async function GET() {
+  const courses = await prisma.course.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+  return NextResponse.json({ courses });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  // Soft-disable rather than hard-delete, since applications/students may reference this course.
-  await prisma.course.update({ where: { id: params.id }, data: { isActive: false } });
-  return NextResponse.json({ ok: true });
+  const { name, category, duration, fee, intake, description } = await req.json();
+  if (!name || !category || !duration || !description) {
+    return NextResponse.json({ error: "Name, category, duration and description are required." }, { status: 400 });
+  }
+  const course = await prisma.course.create({
+    data: { name, category, duration, fee: Number(fee) || 0, intake: intake || null, description },
+  });
+  return NextResponse.json({ course }, { status: 201 });
 }
