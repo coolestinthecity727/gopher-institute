@@ -1,3 +1,4 @@
+﻿
 "use client";
 
 import { useEffect, useState } from "react";
@@ -22,6 +23,10 @@ export default function AdminCertificatesPage() {
   const [showForm, setShowForm] = useState(false);
   const [studentId, setStudentId] = useState("");
   const [grade, setGrade] = useState("");
+  const [certificateNo, setCertificateNo] = useState("");
+  const [issueDate, setIssueDate] = useState("");
+  const [notify, setNotify] = useState(true);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -38,17 +43,31 @@ export default function AdminCertificatesPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function issue(e: React.FormEvent) {
-    e.preventDefault();
-    if (!studentId) return;
-    await fetch("/api/certificates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId, grade }),
-    });
-    setShowForm(false);
+  function resetForm() {
     setStudentId("");
     setGrade("");
+    setCertificateNo("");
+    setIssueDate("");
+    setNotify(true);
+    setError("");
+  }
+
+  async function issue(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    if (!studentId) return;
+    const res = await fetch("/api/certificates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId, grade, certificateNo, issueDate, notify }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      setError(data.error || "Something went wrong.");
+      return;
+    }
+    setShowForm(false);
+    resetForm();
     load();
   }
 
@@ -65,29 +84,50 @@ export default function AdminCertificatesPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <h2 className="font-display text-xl font-extrabold text-navy-900">Certificates</h2>
-        <button onClick={() => setShowForm(!showForm)} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
+        <button onClick={() => { setShowForm(!showForm); resetForm(); }} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
           + Issue Certificate
         </button>
       </div>
 
       {showForm && (
         <form onSubmit={issue} className="card-surface rounded-xl p-6 space-y-4">
-          <h3 className="font-display font-bold text-navy-900">Issue New Certificate</h3>
+          <h3 className="font-display font-bold text-navy-900">Issue Certificate</h3>
+          <p className="text-xs text-navy-500">
+            Leave "Certificate Number" blank to auto-generate a new one, or enter the exact
+            number already printed on a past learner's paper certificate to make it searchable
+            in the online verification portal.
+          </p>
+          {error && <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Student</label>
               <select required value={studentId} onChange={(e) => setStudentId(e.target.value)} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring">
                 <option value="">Select a student</option>
                 {students.map((s) => (
-                  <option key={s.id} value={s.id}>{s.fullName} — {s.studentNumber} ({s.course.name})</option>
+                  <option key={s.id} value={s.id}>{s.fullName} - {s.studentNumber} ({s.course.name})</option>
                 ))}
               </select>
+              <p className="mt-1 text-[11px] text-navy-400">
+                Not listed? Add them first under "Students" then "Add Student".
+              </p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Grade / Result (optional)</label>
               <input value={grade} onChange={(e) => setGrade(e.target.value)} placeholder="e.g. Distinction, Merit, Pass" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Certificate Number (optional, for past certificates)</label>
+              <input value={certificateNo} onChange={(e) => setCertificateNo(e.target.value)} placeholder="Leave blank to auto-generate" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring font-mono" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Issue Date (optional, for past certificates)</label>
+              <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-navy-700">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            Send this student an email notification (uncheck for old/backfilled certificates)
+          </label>
           <p className="text-xs text-navy-500">Issuing a certificate automatically marks the student as an Alumnus.</p>
           <div className="flex gap-3">
             <button type="submit" className="rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400">Issue Certificate</button>
@@ -120,7 +160,7 @@ export default function AdminCertificatesPage() {
                   <p className="text-xs text-navy-500">{c.student.studentNumber}</p>
                 </td>
                 <td className="px-4 py-3 text-navy-700">{c.courseName}</td>
-                <td className="px-4 py-3 text-navy-700">{c.grade || "—"}</td>
+                <td className="px-4 py-3 text-navy-700">{c.grade || "-"}</td>
                 <td className="px-4 py-3 text-navy-500">{new Date(c.issueDate).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-3 py-1 text-xs font-bold ${c.isRevoked ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
