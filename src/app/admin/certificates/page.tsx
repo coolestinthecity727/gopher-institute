@@ -161,7 +161,7 @@ export default function AdminCertificatesPage() {
                 </td>
                 <td className="px-4 py-3 text-navy-700">{c.courseName}</td>
                 <td className="px-4 py-3 text-navy-700">{c.grade || "-"}</td>
-                <td className="px-4 py-3 text-navy-500">{new Date(c.issueDate).toLocaleDateString()}</td>
+                <td className="px-4 py-3 text-navy-500">{new Date(c.issueDate).toLocaleDateString(undefined, { timeZone: "UTC" })}</td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-3 py-1 text-xs font-bold ${c.isRevoked ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
                     {c.isRevoked ? "Revoked" : "Valid"}
