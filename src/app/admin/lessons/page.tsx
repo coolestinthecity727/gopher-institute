@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 type Course = { id: string; name: string };
+type QuizQuestion = { question: string; options: string[]; correctIndex: number };
 type Lesson = {
   id: string;
   courseId: string;
@@ -10,11 +11,13 @@ type Lesson = {
   description: string;
   videoUrl: string | null;
   documentUrl: string | null;
+  quizJson: string | null;
   sortOrder: number;
   published: boolean;
   course: { name: string };
 };
 
+const emptyQuestion = (): QuizQuestion => ({ question: "", options: ["", "", "", ""], correctIndex: 0 });
 const empty = { courseId: "", title: "", description: "", videoUrl: "", documentUrl: "", sortOrder: "0" };
 
 export default function AdminLessonsPage() {
@@ -24,6 +27,8 @@ export default function AdminLessonsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(empty);
+  const [hasQuiz, setHasQuiz] = useState(false);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [filterCourse, setFilterCourse] = useState("");
 
   async function load() {
@@ -41,6 +46,13 @@ export default function AdminLessonsPage() {
 
   useEffect(() => { load(); }, []);
 
+  function resetFormState() {
+    setForm(empty);
+    setHasQuiz(false);
+    setQuestions([]);
+    setEditingId(null);
+  }
+
   function startEdit(l: Lesson) {
     setEditingId(l.id);
     setForm({
@@ -51,21 +63,62 @@ export default function AdminLessonsPage() {
       documentUrl: l.documentUrl || "",
       sortOrder: String(l.sortOrder),
     });
+    if (l.quizJson) {
+      try {
+        setQuestions(JSON.parse(l.quizJson));
+        setHasQuiz(true);
+      } catch {
+        setQuestions([]);
+        setHasQuiz(false);
+      }
+    } else {
+      setQuestions([]);
+      setHasQuiz(false);
+    }
     setShowForm(true);
+  }
+
+  function addQuestion() {
+    setQuestions([...questions, emptyQuestion()]);
+  }
+
+  function removeQuestion(index: number) {
+    setQuestions(questions.filter((_, i) => i !== index));
+  }
+
+  function updateQuestion(index: number, field: "question", value: string) {
+    const next = [...questions];
+    next[index] = { ...next[index], [field]: value };
+    setQuestions(next);
+  }
+
+  function updateOption(qIndex: number, oIndex: number, value: string) {
+    const next = [...questions];
+    const options = [...next[qIndex].options];
+    options[oIndex] = value;
+    next[qIndex] = { ...next[qIndex], options };
+    setQuestions(next);
+  }
+
+  function setCorrect(qIndex: number, oIndex: number) {
+    const next = [...questions];
+    next[qIndex] = { ...next[qIndex], correctIndex: oIndex };
+    setQuestions(next);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const quizJson = hasQuiz && questions.length > 0 ? JSON.stringify(questions) : null;
+    const payload = { ...form, quizJson };
     const method = editingId ? "PATCH" : "POST";
     const url = editingId ? `/api/lessons/${editingId}` : "/api/lessons";
     await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     setShowForm(false);
-    setEditingId(null);
-    setForm(empty);
+    resetFormState();
     load();
   }
 
@@ -90,7 +143,7 @@ export default function AdminLessonsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <h2 className="font-display text-xl font-extrabold text-navy-900">Lessons</h2>
-        <button onClick={() => { setShowForm(true); setEditingId(null); setForm(empty); }} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
+        <button onClick={() => { setShowForm(true); resetFormState(); }} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
           + Add Lesson
         </button>
       </div>
@@ -128,16 +181,59 @@ export default function AdminLessonsPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Document URL (notes/PDF)</label>
-              <input value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Paste a link, or upload via Photo Gallery's uploader and paste the URL" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+              <input value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Paste a link" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Order (lower shows first)</label>
               <input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
           </div>
+
+          <div className="border-t border-navy-900/10 pt-4">
+            <label className="flex items-center gap-2 text-sm font-semibold text-navy-800">
+              <input type="checkbox" checked={hasQuiz} onChange={(e) => { setHasQuiz(e.target.checked); if (e.target.checked && questions.length === 0) addQuestion(); }} />
+              Add a quiz to this lesson
+            </label>
+
+            {hasQuiz && (
+              <div className="mt-4 space-y-4">
+                {questions.map((q, qIndex) => (
+                  <div key={qIndex} className="rounded-lg border border-navy-900/10 p-4 space-y-3 bg-navy-50/50">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-navy-600">Question {qIndex + 1}</label>
+                      <button type="button" onClick={() => removeQuestion(qIndex)} className="text-xs font-semibold text-red-500 hover:text-red-600">Remove</button>
+                    </div>
+                    <input required value={q.question} onChange={(e) => updateQuestion(qIndex, "question", e.target.value)} placeholder="Question text" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {q.options.map((opt, oIndex) => (
+                        <div key={oIndex} className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`correct-${qIndex}`}
+                            checked={q.correctIndex === oIndex}
+                            onChange={() => setCorrect(qIndex, oIndex)}
+                          />
+                          <input
+                            required
+                            value={opt}
+                            onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                            placeholder={`Option ${oIndex + 1}`}
+                            className="flex-1 rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-navy-400">Select the radio button next to the correct answer.</p>
+                  </div>
+                ))}
+                <button type="button" onClick={addQuestion} className="text-sm font-semibold text-rust-500 hover:text-rust-600">+ Add Question</button>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3">
             <button type="submit" className="rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400">{editingId ? "Save Changes" : "Add Lesson"}</button>
-            <button type="button" onClick={() => { setShowForm(false); setEditingId(null); }} className="rounded-md border border-navy-900/15 px-5 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">Cancel</button>
+            <button type="button" onClick={() => { setShowForm(false); resetFormState(); }} className="rounded-md border border-navy-900/15 px-5 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">Cancel</button>
           </div>
         </form>
       )}
@@ -150,19 +246,21 @@ export default function AdminLessonsPage() {
               <th className="text-left px-4 py-3">Programme</th>
               <th className="text-left px-4 py-3">Video</th>
               <th className="text-left px-4 py-3">Document</th>
+              <th className="text-left px-4 py-3">Quiz</th>
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={6} className="px-4 py-6 text-center text-navy-500">Loading...</td></tr>}
-            {!loading && filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-6 text-center text-navy-500">No lessons yet.</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-6 text-center text-navy-500">Loading...</td></tr>}
+            {!loading && filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-6 text-center text-navy-500">No lessons yet.</td></tr>}
             {filtered.map((l) => (
               <tr key={l.id} className="border-t border-navy-900/5 hover:bg-navy-50/50">
                 <td className="px-4 py-3 font-semibold text-navy-900">{l.title}</td>
                 <td className="px-4 py-3 text-navy-700">{l.course.name}</td>
                 <td className="px-4 py-3 text-navy-500">{l.videoUrl ? "Yes" : "-"}</td>
                 <td className="px-4 py-3 text-navy-500">{l.documentUrl ? "Yes" : "-"}</td>
+                <td className="px-4 py-3 text-navy-500">{l.quizJson ? "Yes" : "-"}</td>
                 <td className="px-4 py-3">
                   <button onClick={() => togglePublished(l)} className={`rounded-full px-3 py-1 text-xs font-bold ${l.published ? "bg-emerald-100 text-emerald-800" : "bg-navy-100 text-navy-600"}`}>
                     {l.published ? "Published" : "Hidden"}

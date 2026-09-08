@@ -158,15 +158,37 @@ model GalleryImage {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
 }
-  model Lesson {
+model Lesson {
   id          String   @id @default(cuid())
   courseId    String
   course      Course   @relation(fields: [courseId], references: [id])
   title       String
   description String
+  quizJson    String?
   videoUrl    String?
   documentUrl String?
   sortOrder   Int      @default(0)
   published   Boolean  @default(true)
   createdAt   DateTime @default(now())
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  lessonId    String
+  completedAt DateTime @default(now())
+
+  @@unique([studentId, lessonId])
+}
+
+model QuizResult {
+  id          String   @id @default(cuid())
+  studentId   String
+  lessonId    String
+  score       Int
+  total       Int
+  passed      Boolean
+  attemptedAt DateTime @default(now())
+
+  @@unique([studentId, lessonId])
 }

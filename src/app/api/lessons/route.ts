@@ -25,10 +25,7 @@ export async function POST(req: NextRequest) {
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { courseId, title, description, videoUrl, documentUrl, sortOrder, published } = await req.json();
-  if (!courseId || !title || !description) {
-    return NextResponse.json({ error: "Programme, title and description are required." }, { status: 400 });
-  }
+  const { courseId, title, description, videoUrl, documentUrl, quizJson, sortOrder, published } = await req.json();
   const lesson = await prisma.lesson.create({
     data: {
       courseId,
@@ -36,6 +33,7 @@ export async function POST(req: NextRequest) {
       description,
       videoUrl: videoUrl || null,
       documentUrl: documentUrl || null,
+      quizJson: quizJson || null,
       sortOrder: Number(sortOrder) || 0,
       published: published ?? true,
     },

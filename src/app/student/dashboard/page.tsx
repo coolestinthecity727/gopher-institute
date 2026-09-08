@@ -56,6 +56,20 @@ export default async function StudentDashboardPage() {
         </div>
       </div>
 
+       <div className="mt-8">
+        <h2 className="font-display font-bold text-navy-900 text-lg">My Lessons</h2>
+        {student.course.lessons.length === 0 ? (
+          <p className="mt-3 text-sm text-navy-500">No lessons have been published for your programme yet.</p>
+        ) : (
+          
+            <a href={`/student/dashboard/lessons/${student.courseId}`}
+            className="mt-3 inline-block rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400"
+          >
+            Go to My Lessons ({student.course.lessons.length}) →
+          </a>
+        )}
+      </div>
+
       <div className="mt-8">
         <h2 className="font-display font-bold text-navy-900 text-lg">My Certificates</h2>
         {student.certificates.length === 0 ? (
