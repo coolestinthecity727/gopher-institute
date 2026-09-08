@@ -46,6 +46,7 @@ model Course {
 
   applications Application[]
   students     Student[]
+    lessons      Lesson[]
 }
 
 model Application {
@@ -156,4 +157,16 @@ model GalleryImage {
   category  String   @default("Campus Life") // e.g. Campus Life, Workshops, Graduation, Events
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
+}
+  model Lesson {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  title       String
+  description String
+  videoUrl    String?
+  documentUrl String?
+  sortOrder   Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }

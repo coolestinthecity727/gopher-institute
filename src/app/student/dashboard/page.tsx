@@ -6,9 +6,12 @@ export const dynamic = "force-dynamic";
 export default async function StudentDashboardPage() {
   const session = getSessionFromCookies();
   const student = await prisma.student.findUnique({
-    where: { userId: session!.userId },
-    include: { course: true, certificates: true },
-  });
+  where: { userId: session!.userId },
+  include: {
+    course: { include: { lessons: { where: { published: true }, orderBy: { sortOrder: "asc" } } } },
+    certificates: true,
+  },
+});
 
   if (!student) {
     return (
