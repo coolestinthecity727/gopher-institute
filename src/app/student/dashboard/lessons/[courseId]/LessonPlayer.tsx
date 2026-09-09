@@ -5,6 +5,7 @@ import { useState } from "react";
 type Quiz = { question: string; options: string[]; correctIndex: number }[];
 type Lesson = {
   id: string;
+  moduleId: string | null;
   title: string;
   description: string;
   videoUrl: string | null;
@@ -13,8 +14,9 @@ type Lesson = {
   quiz: Quiz | null;
   completed: boolean;
 };
+type ModuleType = { id: string; title: string };
 
-export default function LessonPlayer({ lessons: initialLessons }: { lessons: Lesson[] }) {
+export default function LessonPlayer({ lessons: initialLessons, modules }: { lessons: Lesson[]; modules: ModuleType[] }) {
   const [lessons, setLessons] = useState(initialLessons);
   const [activeId, setActiveId] = useState(initialLessons[0]?.id || "");
   const [answers, setAnswers] = useState<number[]>([]);
@@ -24,6 +26,9 @@ export default function LessonPlayer({ lessons: initialLessons }: { lessons: Les
   const active = lessons.find((l) => l.id === activeId);
   const completedCount = lessons.filter((l) => l.completed).length;
   const percent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+
+  const ungrouped = lessons.filter((l) => !l.moduleId);
+  const groups = modules.map((m) => ({ module: m, lessons: lessons.filter((l) => l.moduleId === m.id) }));
 
   function openLesson(id: string) {
     setActiveId(id);
@@ -65,6 +70,22 @@ export default function LessonPlayer({ lessons: initialLessons }: { lessons: Les
     setAnswers(next);
   }
 
+  function LessonButton({ l }: { l: Lesson }) {
+    return (
+      <button
+        onClick={() => openLesson(l.id)}
+        className={`w-full text-left rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
+          l.id === activeId ? "bg-navy-800 text-white" : "card-surface text-navy-800 hover:border-rust-400"
+        }`}
+      >
+        <span className="flex items-center justify-between">
+          {l.title}
+          {l.completed && <span className="text-emerald-400">✓</span>}
+        </span>
+      </button>
+    );
+  }
+
   return (
     <div className="mt-6">
       <div className="card-surface rounded-xl p-5 mb-6">
@@ -78,21 +99,25 @@ export default function LessonPlayer({ lessons: initialLessons }: { lessons: Les
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <div className="space-y-2">
-          {lessons.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => openLesson(l.id)}
-              className={`w-full text-left rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
-                l.id === activeId ? "bg-navy-800 text-white" : "card-surface text-navy-800 hover:border-rust-400"
-              }`}
-            >
-              <span className="flex items-center justify-between">
-                {l.title}
-                {l.completed && <span className="text-emerald-400">✓</span>}
-              </span>
-            </button>
+        <div className="space-y-4">
+          {groups.map(({ module, lessons: moduleLessons }) => (
+            moduleLessons.length > 0 && (
+              <div key={module.id}>
+                <p className="text-xs font-bold uppercase tracking-wide text-navy-500 mb-2">{module.title}</p>
+                <div className="space-y-2">
+                  {moduleLessons.map((l) => <LessonButton key={l.id} l={l} />)}
+                </div>
+              </div>
+            )
           ))}
+          {ungrouped.length > 0 && (
+            <div>
+              {groups.length > 0 && <p className="text-xs font-bold uppercase tracking-wide text-navy-500 mb-2">Other Lessons</p>}
+              <div className="space-y-2">
+                {ungrouped.map((l) => <LessonButton key={l.id} l={l} />)}
+              </div>
+            </div>
+          )}
           {lessons.length === 0 && <p className="text-sm text-navy-500">No lessons published yet.</p>}
         </div>
 
@@ -130,12 +155,7 @@ export default function LessonPlayer({ lessons: initialLessons }: { lessons: Les
                       <div className="mt-2 space-y-1">
                         {q.options.map((opt, oIndex) => (
                           <label key={oIndex} className="flex items-center gap-2 text-sm text-navy-700">
-                            <input
-                              type="radio"
-                              name={`q-${qIndex}`}
-                              checked={answers[qIndex] === oIndex}
-                              onChange={() => selectAnswer(qIndex, oIndex)}
-                            />
+                            <input type="radio" name={`q-${qIndex}`} checked={answers[qIndex] === oIndex} onChange={() => selectAnswer(qIndex, oIndex)} />
                             {opt}
                           </label>
                         ))}
@@ -174,7 +194,6 @@ export default function LessonPlayer({ lessons: initialLessons }: { lessons: Les
   );
 }
 
-// Converts common YouTube/Vimeo watch links into embeddable player URLs.
 function toEmbedUrl(url: string) {
   const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
   if (yt) return `https://www.youtube.com/embed/${yt[1]}`;

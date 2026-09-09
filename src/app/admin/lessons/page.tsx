@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 
 type Course = { id: string; name: string };
 type QuizQuestion = { question: string; options: string[]; correctIndex: number };
+type ModuleType = { id: string; courseId: string; title: string; description: string; sortOrder: number };
 type Lesson = {
   id: string;
   courseId: string;
+  moduleId: string | null;
   title: string;
   description: string;
   videoUrl: string | null;
@@ -18,29 +20,39 @@ type Lesson = {
 };
 
 const emptyQuestion = (): QuizQuestion => ({ question: "", options: ["", "", "", ""], correctIndex: 0 });
-const empty = { courseId: "", title: "", description: "", videoUrl: "", documentUrl: "", sortOrder: "0" };
+const empty = { courseId: "", moduleId: "", title: "", description: "", videoUrl: "", documentUrl: "", sortOrder: "0" };
+const emptyModule = { courseId: "", title: "", description: "", sortOrder: "0" };
 
 export default function AdminLessonsPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [modules, setModules] = useState<ModuleType[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(empty);
   const [hasQuiz, setHasQuiz] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+
+  const [showModuleForm, setShowModuleForm] = useState(false);
+  const [moduleForm, setModuleForm] = useState(emptyModule);
+
   const [filterCourse, setFilterCourse] = useState("");
 
   async function load() {
     setLoading(true);
-    const [lessonRes, courseRes] = await Promise.all([
+    const [lessonRes, courseRes, moduleRes] = await Promise.all([
       fetch("/api/lessons"),
       fetch("/api/courses"),
+      fetch("/api/modules"),
     ]);
     const lessonData = await lessonRes.json();
     const courseData = await courseRes.json();
+    const moduleData = await moduleRes.json();
     setLessons(lessonData.lessons || []);
     setCourses(courseData.courses || []);
+    setModules(moduleData.modules || []);
     setLoading(false);
   }
 
@@ -57,6 +69,7 @@ export default function AdminLessonsPage() {
     setEditingId(l.id);
     setForm({
       courseId: l.courseId,
+      moduleId: l.moduleId || "",
       title: l.title,
       description: l.description,
       videoUrl: l.videoUrl || "",
@@ -78,20 +91,13 @@ export default function AdminLessonsPage() {
     setShowForm(true);
   }
 
-  function addQuestion() {
-    setQuestions([...questions, emptyQuestion()]);
-  }
-
-  function removeQuestion(index: number) {
-    setQuestions(questions.filter((_, i) => i !== index));
-  }
-
-  function updateQuestion(index: number, field: "question", value: string) {
+  function addQuestion() { setQuestions([...questions, emptyQuestion()]); }
+  function removeQuestion(index: number) { setQuestions(questions.filter((_, i) => i !== index)); }
+  function updateQuestion(index: number, value: string) {
     const next = [...questions];
-    next[index] = { ...next[index], [field]: value };
+    next[index] = { ...next[index], question: value };
     setQuestions(next);
   }
-
   function updateOption(qIndex: number, oIndex: number, value: string) {
     const next = [...questions];
     const options = [...next[qIndex].options];
@@ -99,7 +105,6 @@ export default function AdminLessonsPage() {
     next[qIndex] = { ...next[qIndex], options };
     setQuestions(next);
   }
-
   function setCorrect(qIndex: number, oIndex: number) {
     const next = [...questions];
     next[qIndex] = { ...next[qIndex], correctIndex: oIndex };
@@ -109,7 +114,7 @@ export default function AdminLessonsPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const quizJson = hasQuiz && questions.length > 0 ? JSON.stringify(questions) : null;
-    const payload = { ...form, quizJson };
+    const payload = { ...form, moduleId: form.moduleId || null, quizJson };
     const method = editingId ? "PATCH" : "POST";
     const url = editingId ? `/api/lessons/${editingId}` : "/api/lessons";
     await fetch(url, {
@@ -137,15 +142,45 @@ export default function AdminLessonsPage() {
     load();
   }
 
+  async function submitModule(e: React.FormEvent) {
+    e.preventDefault();
+    await fetch("/api/modules", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(moduleForm),
+    });
+    setShowModuleForm(false);
+    setModuleForm(emptyModule);
+    load();
+  }
+
+  async function removeModule(id: string) {
+    if (!confirm("Delete this module? Lessons inside it will stay but become unassigned.")) return;
+    await fetch(`/api/modules/${id}`, { method: "DELETE" });
+    load();
+  }
+
   const filtered = filterCourse ? lessons.filter((l) => l.courseId === filterCourse) : lessons;
+  const modulesForFilteredCourse = filterCourse ? modules.filter((m) => m.courseId === filterCourse) : modules;
+  const modulesForForm = modules.filter((m) => m.courseId === form.courseId);
+
+  function moduleName(id: string | null) {
+    if (!id) return "No module";
+    return modules.find((m) => m.id === id)?.title || "Unknown module";
+  }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-wrap gap-3 items-center justify-between">
         <h2 className="font-display text-xl font-extrabold text-navy-900">Lessons</h2>
-        <button onClick={() => { setShowForm(true); resetFormState(); }} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
-          + Add Lesson
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => { setShowModuleForm(true); setModuleForm(emptyModule); }} className="rounded-md border border-navy-900/15 px-4 py-2 text-sm font-semibold text-navy-700 hover:bg-navy-50">
+            + Add Module
+          </button>
+          <button onClick={() => { setShowForm(true); resetFormState(); }} className="rounded-md bg-rust-500 text-white px-4 py-2 text-sm font-semibold hover:bg-rust-400">
+            + Add Lesson
+          </button>
+        </div>
       </div>
 
       <div>
@@ -156,20 +191,80 @@ export default function AdminLessonsPage() {
         </select>
       </div>
 
+      {filterCourse && (
+        <div className="card-surface rounded-xl p-5">
+          <h3 className="font-display font-bold text-navy-900 text-sm">Modules in this Programme</h3>
+          {modulesForFilteredCourse.length === 0 ? (
+            <p className="mt-2 text-sm text-navy-500">No modules yet — lessons will show as ungrouped until you add one.</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {modulesForFilteredCourse.map((m) => (
+                <li key={m.id} className="flex items-center justify-between text-sm">
+                  <span className="font-semibold text-navy-800">{m.title}</span>
+                  <button onClick={() => removeModule(m.id)} className="text-xs font-semibold text-red-500 hover:text-red-600">Delete</button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {showModuleForm && (
+        <form onSubmit={submitModule} className="card-surface rounded-xl p-6 space-y-4">
+          <h3 className="font-display font-bold text-navy-900">New Module</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Programme</label>
+              <select required value={moduleForm.courseId} onChange={(e) => setModuleForm({ ...moduleForm, courseId: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring">
+                <option value="">Select a programme</option>
+                {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Module Title</label>
+              <input required value={moduleForm.title} onChange={(e) => setModuleForm({ ...moduleForm, title: e.target.value })} placeholder="e.g. Module 1: Introduction" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Description</label>
+              <textarea rows={2} value={moduleForm.description} onChange={(e) => setModuleForm({ ...moduleForm, description: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Order</label>
+              <input type="number" value={moduleForm.sortOrder} onChange={(e) => setModuleForm({ ...moduleForm, sortOrder: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button type="submit" className="rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400">Add Module</button>
+            <button type="button" onClick={() => setShowModuleForm(false)} className="rounded-md border border-navy-900/15 px-5 py-2.5 text-sm font-semibold text-navy-700 hover:bg-navy-50">Cancel</button>
+          </div>
+        </form>
+      )}
+
       {showForm && (
         <form onSubmit={submit} className="card-surface rounded-xl p-6 space-y-4">
           <h3 className="font-display font-bold text-navy-900">{editingId ? "Edit Lesson" : "New Lesson"}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Programme</label>
-              <select required value={form.courseId} onChange={(e) => setForm({ ...form, courseId: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring">
+              <select required value={form.courseId} onChange={(e) => setForm({ ...form, courseId: e.target.value, moduleId: "" })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring">
                 <option value="">Select a programme</option>
                 {courses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Module (optional)</label>
+              <select value={form.moduleId} onChange={(e) => setForm({ ...form, moduleId: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring">
+                <option value="">No module</option>
+                {modulesForForm.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Lesson Title</label>
               <input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Order (lower shows first)</label>
+              <input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-navy-600 mb-1">Description</label>
@@ -182,10 +277,6 @@ export default function AdminLessonsPage() {
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Document URL (notes/PDF)</label>
               <input value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Paste a link" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-navy-600 mb-1">Order (lower shows first)</label>
-              <input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
           </div>
 
@@ -203,23 +294,12 @@ export default function AdminLessonsPage() {
                       <label className="block text-xs font-semibold text-navy-600">Question {qIndex + 1}</label>
                       <button type="button" onClick={() => removeQuestion(qIndex)} className="text-xs font-semibold text-red-500 hover:text-red-600">Remove</button>
                     </div>
-                    <input required value={q.question} onChange={(e) => updateQuestion(qIndex, "question", e.target.value)} placeholder="Question text" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+                    <input required value={q.question} onChange={(e) => updateQuestion(qIndex, e.target.value)} placeholder="Question text" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
                     <div className="grid gap-2 sm:grid-cols-2">
                       {q.options.map((opt, oIndex) => (
                         <div key={oIndex} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={q.correctIndex === oIndex}
-                            onChange={() => setCorrect(qIndex, oIndex)}
-                          />
-                          <input
-                            required
-                            value={opt}
-                            onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                            placeholder={`Option ${oIndex + 1}`}
-                            className="flex-1 rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring"
-                          />
+                          <input type="radio" name={`correct-${qIndex}`} checked={q.correctIndex === oIndex} onChange={() => setCorrect(qIndex, oIndex)} />
+                          <input required value={opt} onChange={(e) => updateOption(qIndex, oIndex, e.target.value)} placeholder={`Option ${oIndex + 1}`} className="flex-1 rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
                         </div>
                       ))}
                     </div>
@@ -244,8 +324,8 @@ export default function AdminLessonsPage() {
             <tr>
               <th className="text-left px-4 py-3">Title</th>
               <th className="text-left px-4 py-3">Programme</th>
+              <th className="text-left px-4 py-3">Module</th>
               <th className="text-left px-4 py-3">Video</th>
-              <th className="text-left px-4 py-3">Document</th>
               <th className="text-left px-4 py-3">Quiz</th>
               <th className="text-left px-4 py-3">Status</th>
               <th className="text-left px-4 py-3">Actions</th>
@@ -258,8 +338,8 @@ export default function AdminLessonsPage() {
               <tr key={l.id} className="border-t border-navy-900/5 hover:bg-navy-50/50">
                 <td className="px-4 py-3 font-semibold text-navy-900">{l.title}</td>
                 <td className="px-4 py-3 text-navy-700">{l.course.name}</td>
+                <td className="px-4 py-3 text-navy-500">{moduleName(l.moduleId)}</td>
                 <td className="px-4 py-3 text-navy-500">{l.videoUrl ? "Yes" : "-"}</td>
-                <td className="px-4 py-3 text-navy-500">{l.documentUrl ? "Yes" : "-"}</td>
                 <td className="px-4 py-3 text-navy-500">{l.quizJson ? "Yes" : "-"}</td>
                 <td className="px-4 py-3">
                   <button onClick={() => togglePublished(l)} className={`rounded-full px-3 py-1 text-xs font-bold ${l.published ? "bg-emerald-100 text-emerald-800" : "bg-navy-100 text-navy-600"}`}>
