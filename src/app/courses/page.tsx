@@ -52,12 +52,20 @@ export default async function CoursesPage() {
                       <dd className="font-display font-bold text-navy-900">${c.fee.toFixed(0)} / programme</dd>
                     </div>
                   </dl>
-                  <Link
-                    href={`/apply?course=${c.id}`}
-                    className="mt-5 inline-block rounded-md bg-rust-500 px-4 py-2.5 text-center text-sm font-display font-bold text-white hover:bg-rust-400 transition-colors focus-ring"
-                  >
-                    Apply for this Programme
-                  </Link>
+                  <div className="mt-5 flex gap-2">
+                    <Link
+                      href={`/courses/${c.id}`}
+                      className="flex-1 inline-block rounded-md border border-navy-900/15 px-4 py-2.5 text-center text-sm font-display font-bold text-navy-700 hover:bg-navy-50 transition-colors focus-ring"
+                    >
+                      View Syllabus
+                    </Link>
+                    <Link
+                      href={`/apply?course=${c.id}`}
+                      className="flex-1 inline-block rounded-md bg-rust-500 px-4 py-2.5 text-center text-sm font-display font-bold text-white hover:bg-rust-400 transition-colors focus-ring"
+                    >
+                      Apply Now
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
