@@ -165,6 +165,7 @@ model Lesson {
   course      Course   @relation(fields: [courseId], references: [id])
   title       String
   description String
+  durationMinutes Int?
   quizJson    String?
   videoUrl    String?
   documentUrl String?

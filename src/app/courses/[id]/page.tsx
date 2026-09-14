@@ -78,7 +78,8 @@ export default async function CourseSyllabusPage({ params }: { params: { id: str
                           <p className="text-sm font-semibold text-navy-800">{mIndex + 1}.{lIndex + 1} {l.title}</p>
                           <p className="mt-0.5 text-xs text-navy-500">{l.description}</p>
                         </div>
-                        <div className="flex shrink-0 gap-2 text-xs text-navy-400">
+                        <div className="flex shrink-0 items-center gap-2 text-xs text-navy-400">
+                          {l.durationMinutes && <span>{l.durationMinutes} min</span>}
                           {l.videoUrl && <span title="Includes video">🎬</span>}
                           {l.documentUrl && <span title="Includes notes">📄</span>}
                           {l.quizJson && <span title="Includes quiz">📝</span>}

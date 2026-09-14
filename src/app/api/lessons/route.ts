@@ -25,10 +25,12 @@ export async function POST(req: NextRequest) {
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { courseId, title, description, videoUrl, documentUrl, quizJson, sortOrder, published } = await req.json();
+  const { courseId, moduleId, title, description, videoUrl, documentUrl, quizJson, durationMinutes, sortOrder, published } = await req.json();
   const lesson = await prisma.lesson.create({
     data: {
       courseId,
+      moduleId: moduleId || null,
+      durationMinutes: durationMinutes ? Number(durationMinutes) : null,
       title,
       description,
       videoUrl: videoUrl || null,

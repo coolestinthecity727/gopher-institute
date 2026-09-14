@@ -7,6 +7,7 @@ type QuizQuestion = { question: string; options: string[]; correctIndex: number 
 type ModuleType = { id: string; courseId: string; title: string; description: string; sortOrder: number };
 type Lesson = {
   id: string;
+  durationMinutes: number | null;
   courseId: string;
   moduleId: string | null;
   title: string;
@@ -20,7 +21,7 @@ type Lesson = {
 };
 
 const emptyQuestion = (): QuizQuestion => ({ question: "", options: ["", "", "", ""], correctIndex: 0 });
-const empty = { courseId: "", moduleId: "", title: "", description: "", videoUrl: "", documentUrl: "", sortOrder: "0" };
+const empty = { courseId: "", moduleId: "", title: "", description: "", videoUrl: "", documentUrl: "", sortOrder: "0", durationMinutes: "" };
 const emptyModule = { courseId: "", title: "", description: "", sortOrder: "0" };
 
 export default function AdminLessonsPage() {
@@ -75,6 +76,7 @@ export default function AdminLessonsPage() {
       videoUrl: l.videoUrl || "",
       documentUrl: l.documentUrl || "",
       sortOrder: String(l.sortOrder),
+      durationMinutes: l.durationMinutes ? String(l.durationMinutes) : "",
     });
     if (l.quizJson) {
       try {

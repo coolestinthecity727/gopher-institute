@@ -9,6 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   const body = await req.json();
   if (body.sortOrder !== undefined) body.sortOrder = Number(body.sortOrder) || 0;
+  if (body.durationMinutes !== undefined) body.durationMinutes = body.durationMinutes ? Number(body.durationMinutes) : null;
   const lesson = await prisma.lesson.update({ where: { id: params.id }, data: body });
   return NextResponse.json({ lesson });
 }
