@@ -268,6 +268,10 @@ export default function AdminLessonsPage() {
               <label className="block text-xs font-semibold text-navy-600 mb-1">Order (lower shows first)</label>
               <input type="number" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
+                        <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Duration (minutes)</label>
+              <input type="number" value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: e.target.value })} placeholder="e.g. 15" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-navy-600 mb-1">Description</label>
               <textarea required rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
