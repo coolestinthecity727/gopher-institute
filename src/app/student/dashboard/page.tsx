@@ -1,4 +1,4 @@
-import { getSessionFromCookies } from "@/lib/auth";
+﻿import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -6,12 +6,22 @@ export const dynamic = "force-dynamic";
 export default async function StudentDashboardPage() {
   const session = getSessionFromCookies();
   const student = await prisma.student.findUnique({
-  where: { userId: session!.userId },
-  include: {
-    course: { include: { lessons: { where: { published: true }, orderBy: { sortOrder: "asc" } } } },
-    certificates: true,
-  },
-});
+    where: { userId: session!.userId },
+    include: {
+      course: { include: { lessons: { where: { published: true }, orderBy: { sortOrder: "asc" } } } },
+      certificates: true,
+    },
+  });
+
+  const extraEnrollments = student
+    ? await prisma.courseEnrollment.findMany({
+        where: { studentId: student.id, courseId: { not: student.courseId } },
+      })
+    : [];
+  const extraCourseIds = extraEnrollments.map((e) => e.courseId);
+  const extraCourses = extraCourseIds.length
+    ? await prisma.course.findMany({ where: { id: { in: extraCourseIds } } })
+    : [];
 
   if (!student) {
     return (
@@ -56,16 +66,28 @@ export default async function StudentDashboardPage() {
         </div>
       </div>
 
-       <div className="mt-8">
+      {extraCourses.length > 0 && (
+        <div className="mt-8">
+          <h2 className="font-display font-bold text-navy-900 text-lg">My Enrolled Courses</h2>
+          <p className="mt-1 text-sm text-navy-500">Free online courses you have enrolled in, in addition to your main programme.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {extraCourses.map((c) => (
+              <a key={c.id} href={`/student/dashboard/lessons/${c.id}`} className="card-surface rounded-xl p-5 hover:border-rust-400 transition-colors block">
+                <p className="font-display font-bold text-navy-900">{c.name}</p>
+                <p className="mt-1 text-xs text-navy-500">{c.category}</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-8">
         <h2 className="font-display font-bold text-navy-900 text-lg">My Lessons</h2>
         {student.course.lessons.length === 0 ? (
           <p className="mt-3 text-sm text-navy-500">No lessons have been published for your programme yet.</p>
         ) : (
-          
-            <a href={`/student/dashboard/lessons/${student.courseId}`}
-            className="mt-3 inline-block rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400"
-          >
-            Go to My Lessons ({student.course.lessons.length}) →
+          <a href={`/student/dashboard/lessons/${student.courseId}`} className="mt-3 inline-block rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400">
+            Go to My Lessons ({student.course.lessons.length})
           </a>
         )}
       </div>
@@ -73,7 +95,7 @@ export default async function StudentDashboardPage() {
       <div className="mt-8">
         <h2 className="font-display font-bold text-navy-900 text-lg">My Certificates</h2>
         {student.certificates.length === 0 ? (
-          <p className="mt-3 text-sm text-navy-500">No certificates issued yet — they'll appear here once your programme is complete.</p>
+          <p className="mt-3 text-sm text-navy-500">No certificates issued yet, they will appear here once your programme is complete.</p>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             {student.certificates.map((c) => (
@@ -82,7 +104,7 @@ export default async function StudentDashboardPage() {
                 <dl className="mt-3 space-y-1 text-sm text-navy-600">
                   <div>Certificate No: <span className="font-semibold text-navy-900">{c.certificateNo}</span></div>
                   <div>Verification Code: <span className="font-semibold text-navy-900">{c.verificationCode}</span></div>
-                  <div>Grade: <span className="font-semibold text-navy-900">{c.grade || "—"}</span></div>
+                  <div>Grade: <span className="font-semibold text-navy-900">{c.grade || "-"}</span></div>
                   <div>Issued: <span className="font-semibold text-navy-900">{new Date(c.issueDate).toLocaleDateString()}</span></div>
                 </dl>
               </div>

@@ -2,33 +2,62 @@
 
 import { useState } from "react";
 
-type Quiz = { question: string; options: string[]; correctIndex: number }[];
+type Quiz = {
+  question: string;
+  options: string[];
+  correctIndex: number;
+}[];
+
 type Lesson = {
   id: string;
   moduleId: string | null;
   title: string;
   description: string;
+  durationMinutes: number | null;
   videoUrl: string | null;
   documentUrl: string | null;
   hasQuiz: boolean;
   quiz: Quiz | null;
   completed: boolean;
 };
-type ModuleType = { id: string; title: string };
 
-export default function LessonPlayer({ lessons: initialLessons, modules }: { lessons: Lesson[]; modules: ModuleType[] }) {
+type ModuleType = {
+  id: string;
+  title: string;
+};
+
+export default function LessonPlayer({
+  lessons: initialLessons,
+  modules,
+}: {
+  lessons: Lesson[];
+  modules: ModuleType[];
+}) {
   const [lessons, setLessons] = useState(initialLessons);
   const [activeId, setActiveId] = useState(initialLessons[0]?.id || "");
   const [answers, setAnswers] = useState<number[]>([]);
-  const [result, setResult] = useState<{ score: number; total: number; passed: boolean } | null>(null);
+  const [result, setResult] = useState<{
+    score: number;
+    total: number;
+    passed: boolean;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const active = lessons.find((l) => l.id === activeId);
+
   const completedCount = lessons.filter((l) => l.completed).length;
-  const percent = lessons.length > 0 ? Math.round((completedCount / lessons.length) * 100) : 0;
+
+  const percent =
+    lessons.length > 0
+      ? Math.round((completedCount / lessons.length) * 100)
+      : 0;
 
   const ungrouped = lessons.filter((l) => !l.moduleId);
-  const groups = modules.map((m) => ({ module: m, lessons: lessons.filter((l) => l.moduleId === m.id) }));
+
+  const groups = modules.map((m) => ({
+    module: m,
+    lessons: lessons.filter((l) => l.moduleId === m.id),
+  }));
 
   function openLesson(id: string) {
     setActiveId(id);
@@ -38,29 +67,60 @@ export default function LessonPlayer({ lessons: initialLessons, modules }: { les
 
   async function markComplete() {
     if (!active) return;
+
     setSubmitting(true);
+
     await fetch("/api/progress", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lessonId: active.id }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lessonId: active.id,
+      }),
     });
-    setLessons(lessons.map((l) => (l.id === active.id ? { ...l, completed: true } : l)));
+
+    setLessons(
+      lessons.map((l) =>
+        l.id === active.id
+          ? { ...l, completed: true }
+          : l
+      )
+    );
+
     setSubmitting(false);
   }
 
   async function submitQuiz() {
     if (!active) return;
+
     setSubmitting(true);
+
     const res = await fetch("/api/progress", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lessonId: active.id, quizAnswers: answers }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lessonId: active.id,
+        quizAnswers: answers,
+      }),
     });
+
     const data = await res.json();
+
     setResult(data);
+
     if (data.passed) {
-      setLessons(lessons.map((l) => (l.id === active.id ? { ...l, completed: true } : l)));
+      setLessons(
+        lessons.map((l) =>
+          l.id === active.id
+            ? { ...l, completed: true }
+            : l
+        )
+      );
     }
+
     setSubmitting(false);
   }
 
@@ -70,17 +130,75 @@ export default function LessonPlayer({ lessons: initialLessons, modules }: { les
     setAnswers(next);
   }
 
+  function formatDuration(minutes: number) {
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (remainingMinutes === 0) {
+      return `${hours}h`;
+    }
+
+    return `${hours}h ${remainingMinutes}m`;
+  }
+
+  function getModuleProgress(moduleLessons: Lesson[]) {
+    if (moduleLessons.length === 0) {
+      return 0;
+    }
+
+    const completed = moduleLessons.filter(
+      (l) => l.completed
+    ).length;
+
+    return Math.round(
+      (completed / moduleLessons.length) * 100
+    );
+  }
+
+  function getModuleDuration(moduleLessons: Lesson[]) {
+    return moduleLessons.reduce(
+      (total, lesson) =>
+        total + (lesson.durationMinutes || 0),
+      0
+    );
+  }
+
   function LessonButton({ l }: { l: Lesson }) {
     return (
       <button
         onClick={() => openLesson(l.id)}
         className={`w-full text-left rounded-lg px-4 py-3 text-sm font-semibold transition-colors ${
-          l.id === activeId ? "bg-navy-800 text-white" : "card-surface text-navy-800 hover:border-rust-400"
+          l.id === activeId
+            ? "bg-navy-800 text-white"
+            : "card-surface text-navy-800 hover:border-rust-400"
         }`}
       >
-        <span className="flex items-center justify-between">
-          {l.title}
-          {l.completed && <span className="text-emerald-400">✓</span>}
+        <span className="flex items-center justify-between gap-3">
+          <span>{l.title}</span>
+
+          <span className="flex items-center gap-2 shrink-0">
+            {l.durationMinutes && (
+              <span
+                className={
+                  l.id === activeId
+                    ? "text-white/70 text-xs"
+                    : "text-navy-500 text-xs"
+                }
+              >
+                {formatDuration(l.durationMinutes)}
+              </span>
+            )}
+
+            {l.completed && (
+              <span className="text-emerald-400">
+                ✓
+              </span>
+            )}
+          </span>
         </span>
       </button>
     );
@@ -88,46 +206,181 @@ export default function LessonPlayer({ lessons: initialLessons, modules }: { les
 
   return (
     <div className="mt-6">
+
+      {/* OVERALL PROGRAMME PROGRESS */}
       <div className="card-surface rounded-xl p-5 mb-6">
         <div className="flex items-center justify-between text-sm font-semibold text-navy-700">
           <span>Your Progress</span>
-          <span>{completedCount} / {lessons.length} lessons ({percent}%)</span>
+
+          <span>
+            {completedCount} / {lessons.length} lessons (
+            {percent}%)
+          </span>
         </div>
+
         <div className="mt-2 h-2 rounded-full bg-navy-100 overflow-hidden">
-          <div className="h-full bg-rust-500" style={{ width: `${percent}%` }} />
+          <div
+            className="h-full bg-rust-500"
+            style={{ width: `${percent}%` }}
+          />
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <div className="space-y-4">
-          {groups.map(({ module, lessons: moduleLessons }) => (
-            moduleLessons.length > 0 && (
-              <div key={module.id}>
-                <p className="text-xs font-bold uppercase tracking-wide text-navy-500 mb-2">{module.title}</p>
-                <div className="space-y-2">
-                  {moduleLessons.map((l) => <LessonButton key={l.id} l={l} />)}
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+
+        {/* MODULE / LESSON NAVIGATION */}
+        <div className="space-y-5">
+
+          {groups.map(
+            ({ module, lessons: moduleLessons }) =>
+              moduleLessons.length > 0 && (
+                <div
+                  key={module.id}
+                  className="card-surface rounded-xl p-4"
+                >
+
+                  {/* MODULE HEADER */}
+                  <div className="mb-3">
+
+                    <p className="text-xs font-bold uppercase tracking-wide text-navy-500">
+                      Module
+                    </p>
+
+                    <p className="mt-1 text-sm font-extrabold text-navy-900">
+                      {module.title}
+                    </p>
+
+                    {/* MODULE STATS */}
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-navy-500">
+                      <span>
+                        {moduleLessons.length}{" "}
+                        {moduleLessons.length === 1
+                          ? "lesson"
+                          : "lessons"}
+                      </span>
+
+                      {getModuleDuration(moduleLessons) >
+                        0 && (
+                        <span>
+                          •{" "}
+                          {formatDuration(
+                            getModuleDuration(
+                              moduleLessons
+                            )
+                          )}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* MODULE PROGRESS */}
+                    <div className="mt-3">
+
+                      <div className="flex items-center justify-between text-xs font-semibold text-navy-600">
+                        <span>
+                          Module Progress
+                        </span>
+
+                        <span>
+                          {getModuleProgress(
+                            moduleLessons
+                          )}
+                          %
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 h-1.5 rounded-full bg-navy-100 overflow-hidden">
+                        <div
+                          className="h-full bg-rust-500 transition-all"
+                          style={{
+                            width: `${getModuleProgress(
+                              moduleLessons
+                            )}%`,
+                          }}
+                        />
+                      </div>
+
+                      <p className="mt-1 text-xs text-navy-500">
+                        {
+                          moduleLessons.filter(
+                            (l) => l.completed
+                          ).length
+                        }{" "}
+                        of {moduleLessons.length} lessons
+                        completed
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* LESSONS */}
+                  <div className="space-y-2">
+                    {moduleLessons.map((l) => (
+                      <LessonButton
+                        key={l.id}
+                        l={l}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )
-          ))}
+              )
+          )}
+
+          {/* UNGROUPED LESSONS */}
           {ungrouped.length > 0 && (
             <div>
-              {groups.length > 0 && <p className="text-xs font-bold uppercase tracking-wide text-navy-500 mb-2">Other Lessons</p>}
+              {groups.length > 0 && (
+                <p className="text-xs font-bold uppercase tracking-wide text-navy-500 mb-2">
+                  Other Lessons
+                </p>
+              )}
+
               <div className="space-y-2">
-                {ungrouped.map((l) => <LessonButton key={l.id} l={l} />)}
+                {ungrouped.map((l) => (
+                  <LessonButton
+                    key={l.id}
+                    l={l}
+                  />
+                ))}
               </div>
             </div>
           )}
-          {lessons.length === 0 && <p className="text-sm text-navy-500">No lessons published yet.</p>}
+
+          {lessons.length === 0 && (
+            <p className="text-sm text-navy-500">
+              No lessons published yet.
+            </p>
+          )}
         </div>
 
+        {/* ACTIVE LESSON */}
         <div className="card-surface rounded-xl p-6">
+
           {!active ? (
-            <p className="text-navy-500">Select a lesson to begin.</p>
+            <p className="text-navy-500">
+              Select a lesson to begin.
+            </p>
           ) : (
             <div>
-              <h2 className="font-display text-xl font-extrabold text-navy-900">{active.title}</h2>
-              <p className="mt-2 text-sm text-navy-600">{active.description}</p>
+
+              <div className="flex flex-wrap items-start justify-between gap-3">
+
+                <div>
+                  <h2 className="font-display text-xl font-extrabold text-navy-900">
+                    {active.title}
+                  </h2>
+
+                  <p className="mt-2 text-sm text-navy-600">
+                    {active.description}
+                  </p>
+                </div>
+
+                {active.durationMinutes && (
+                  <span className="rounded-full bg-navy-100 px-3 py-1 text-xs font-bold text-navy-700">
+                    {formatDuration(
+                      active.durationMinutes
+                    )}
+                  </span>
+                )}
+              </div>
 
               {active.videoUrl && (
                 <div className="mt-4 aspect-video w-full rounded-lg overflow-hidden bg-navy-900">
@@ -141,49 +394,105 @@ export default function LessonPlayer({ lessons: initialLessons, modules }: { les
               )}
 
               {active.documentUrl && (
-                <a href={active.documentUrl} target="_blank" className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600">
+                <a
+                  href={active.documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600"
+                >
                   Download Notes →
                 </a>
               )}
 
+              {/* QUIZ */}
               {active.hasQuiz && active.quiz ? (
                 <div className="mt-6 border-t border-navy-900/10 pt-6 space-y-5">
-                  <h3 className="font-display font-bold text-navy-900">Quiz</h3>
+
+                  <h3 className="font-display font-bold text-navy-900">
+                    Quiz
+                  </h3>
+
                   {active.quiz.map((q, qIndex) => (
                     <div key={qIndex}>
-                      <p className="text-sm font-semibold text-navy-800">{qIndex + 1}. {q.question}</p>
+
+                      <p className="text-sm font-semibold text-navy-800">
+                        {qIndex + 1}. {q.question}
+                      </p>
+
                       <div className="mt-2 space-y-1">
-                        {q.options.map((opt, oIndex) => (
-                          <label key={oIndex} className="flex items-center gap-2 text-sm text-navy-700">
-                            <input type="radio" name={`q-${qIndex}`} checked={answers[qIndex] === oIndex} onChange={() => selectAnswer(qIndex, oIndex)} />
-                            {opt}
-                          </label>
-                        ))}
+
+                        {q.options.map(
+                          (opt, oIndex) => (
+                            <label
+                              key={oIndex}
+                              className="flex items-center gap-2 text-sm text-navy-700"
+                            >
+                              <input
+                                type="radio"
+                                name={`q-${qIndex}`}
+                                checked={
+                                  answers[qIndex] ===
+                                  oIndex
+                                }
+                                onChange={() =>
+                                  selectAnswer(
+                                    qIndex,
+                                    oIndex
+                                  )
+                                }
+                              />
+
+                              {opt}
+                            </label>
+                          )
+                        )}
                       </div>
                     </div>
                   ))}
 
                   {result && (
-                    <div className={`rounded-md p-4 text-sm font-semibold ${result.passed ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                      You scored {result.score} / {result.total}. {result.passed ? "Passed! Lesson marked complete." : "You need 70% to pass — you can try again."}
+                    <div
+                      className={`rounded-md p-4 text-sm font-semibold ${
+                        result.passed
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-red-50 text-red-700"
+                      }`}
+                    >
+                      You scored {result.score} /{" "}
+                      {result.total}.{" "}
+                      {result.passed
+                        ? "Passed! Lesson marked complete."
+                        : "You need 70% to pass — you can try again."}
                     </div>
                   )}
 
                   <button
                     onClick={submitQuiz}
-                    disabled={submitting || answers.length < active.quiz.length}
+                    disabled={
+                      submitting ||
+                      answers.length <
+                        active.quiz.length
+                    }
                     className="rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400 disabled:opacity-50"
                   >
-                    {submitting ? "Submitting..." : "Submit Quiz"}
+                    {submitting
+                      ? "Submitting..."
+                      : "Submit Quiz"}
                   </button>
                 </div>
               ) : (
                 <button
                   onClick={markComplete}
-                  disabled={submitting || active.completed}
+                  disabled={
+                    submitting || active.completed
+                  }
                   className="mt-6 rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400 disabled:opacity-50"
                 >
-                  {active.completed ? "Completed ✓" : submitting ? "Saving..." : "Mark as Complete"}
+                  {active.completed
+                    ? "Completed ✓"
+                    : submitting
+                    ? "Saving..."
+                    : "Mark as Complete"}
                 </button>
               )}
             </div>
@@ -195,9 +504,21 @@ export default function LessonPlayer({ lessons: initialLessons, modules }: { les
 }
 
 function toEmbedUrl(url: string) {
-  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
-  const vimeo = url.match(/vimeo\.com\/(\d+)/);
-  if (vimeo) return `https://player.vimeo.com/video/${vimeo[1]}`;
+  const yt = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/
+  );
+
+  if (yt) {
+    return `https://www.youtube.com/embed/${yt[1]}`;
+  }
+
+  const vimeo = url.match(
+    /vimeo\.com\/(\d+)/
+  );
+
+  if (vimeo) {
+    return `https://player.vimeo.com/video/${vimeo[1]}`;
+  }
+
   return url;
 }

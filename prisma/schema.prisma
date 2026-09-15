@@ -4,7 +4,14 @@
 generator client {
   provider = "prisma-client-js"
 }
+model CourseEnrollment {
+  id          String   @id @default(cuid())
+  studentId   String
+  courseId    String
+  enrolledAt  DateTime @default(now())
 
+  @@unique([studentId, courseId])
+}
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
