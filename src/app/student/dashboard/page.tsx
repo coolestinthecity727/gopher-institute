@@ -1,112 +1,302 @@
-﻿import { getSessionFromCookies } from "@/lib/auth";
+import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const BADGE_INFO: Record<
+  string,
+  { label: string; icon: string; description: string }
+> = {
+  "first-step": {
+    label: "First Step",
+    icon: "🎯",
+    description: "Completed your first lesson",
+  },
+  "quiz-master": {
+    label: "Quiz Master",
+    icon: "🧠",
+    description: "Passed 5 quizzes",
+  },
+  "programme-graduate": {
+    label: "Programme Graduate",
+    icon: "🎓",
+    description: "Completed an entire course",
+  },
+};
+
 export default async function StudentDashboardPage() {
   const session = getSessionFromCookies();
+
   const student = await prisma.student.findUnique({
     where: { userId: session!.userId },
     include: {
-      course: { include: { lessons: { where: { published: true }, orderBy: { sortOrder: "asc" } } } },
+      course: {
+        include: {
+          lessons: {
+            where: { published: true },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      },
       certificates: true,
     },
   });
 
   const extraEnrollments = student
     ? await prisma.courseEnrollment.findMany({
-        where: { studentId: student.id, courseId: { not: student.courseId } },
+        where: {
+          studentId: student.id,
+          courseId: { not: student.courseId },
+        },
       })
     : [];
+
   const extraCourseIds = extraEnrollments.map((e) => e.courseId);
+
   const extraCourses = extraCourseIds.length
-    ? await prisma.course.findMany({ where: { id: { in: extraCourseIds } } })
+    ? await prisma.course.findMany({
+        where: { id: { in: extraCourseIds } },
+      })
     : [];
+
+  const earnedBadges = student
+    ? await prisma.studentBadge.findMany({
+        where: { studentId: student.id },
+      })
+    : [];
+
+  const earnedKeys = new Set(
+    earnedBadges.map((badge) => badge.badgeKey)
+  );
 
   if (!student) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 text-center">
-        <h1 className="font-display text-2xl font-extrabold text-navy-900">No student record linked</h1>
-        <p className="mt-2 text-navy-600">Please contact the registrar's office to link your account.</p>
+      <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
+        <h1 className="font-display text-2xl font-extrabold text-navy-900">
+          No student record linked
+        </h1>
+
+        <p className="mt-2 text-navy-600">
+          Please contact the registrar&apos;s office to link your account.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Dashboard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-rust-500">Student Dashboard</span>
-          <h1 className="mt-1 font-display text-3xl font-extrabold text-navy-900">Welcome, {student.fullName.split(" ")[0]}</h1>
+          <span className="text-xs font-bold uppercase tracking-wider text-rust-500">
+            Student Dashboard
+          </span>
+
+          <h1 className="mt-1 font-display text-3xl font-extrabold text-navy-900">
+            Welcome, {student.fullName.split(" ")[0]}
+          </h1>
         </div>
-        <span className={`route-tag px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white ${student.status === "CURRENT" ? "bg-rust-500" : "bg-navy-600"}`}>
-          {student.status === "CURRENT" ? "Currently Enrolled" : student.status}
+
+        <span
+          className={`route-tag px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white ${
+            student.status === "CURRENT"
+              ? "bg-rust-500"
+              : "bg-navy-600"
+          }`}
+        >
+          {student.status === "CURRENT"
+            ? "Currently Enrolled"
+            : student.status}
         </span>
       </div>
 
+      {/* Enrollment Details */}
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         <div className="card-surface rounded-xl p-6 lg:col-span-2">
-          <h2 className="font-display font-bold text-navy-900">Enrollment Details</h2>
+          <h2 className="font-display font-bold text-navy-900">
+            Enrollment Details
+          </h2>
+
           <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div><dt className="text-navy-500">Student Number</dt><dd className="font-semibold text-navy-900">{student.studentNumber}</dd></div>
-            <div><dt className="text-navy-500">Programme</dt><dd className="font-semibold text-navy-900">{student.course.name}</dd></div>
-            <div><dt className="text-navy-500">Enrolled</dt><dd className="font-semibold text-navy-900">{new Date(student.enrollmentDate).toLocaleDateString()}</dd></div>
-            <div><dt className="text-navy-500">Email</dt><dd className="font-semibold text-navy-900">{student.email}</dd></div>
+            <div>
+              <dt className="text-navy-500">Student Number</dt>
+              <dd className="font-semibold text-navy-900">
+                {student.studentNumber}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-navy-500">Programme</dt>
+              <dd className="font-semibold text-navy-900">
+                {student.course.name}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-navy-500">Enrolled</dt>
+              <dd className="font-semibold text-navy-900">
+                {new Date(
+                  student.enrollmentDate
+                ).toLocaleDateString()}
+              </dd>
+            </div>
+
+            <div>
+              <dt className="text-navy-500">Email</dt>
+              <dd className="font-semibold text-navy-900">
+                {student.email}
+              </dd>
+            </div>
+
             {student.graduationDate && (
-              <div><dt className="text-navy-500">Graduated</dt><dd className="font-semibold text-navy-900">{new Date(student.graduationDate).toLocaleDateString()}</dd></div>
+              <div>
+                <dt className="text-navy-500">Graduated</dt>
+                <dd className="font-semibold text-navy-900">
+                  {new Date(
+                    student.graduationDate
+                  ).toLocaleDateString()}
+                </dd>
+              </div>
             )}
           </dl>
         </div>
 
+        {/* Programme Information */}
         <div className="card-surface rounded-xl p-6">
-          <h2 className="font-display font-bold text-navy-900">Programme Duration</h2>
-          <p className="mt-2 text-sm text-navy-600">{student.course.duration}</p>
-          <h2 className="mt-4 font-display font-bold text-navy-900">Tuition</h2>
-          <p className="mt-2 text-sm text-navy-600">${student.course.fee.toFixed(0)}</p>
+          <h2 className="font-display font-bold text-navy-900">
+            Programme Duration
+          </h2>
+
+          <p className="mt-2 text-sm text-navy-600">
+            {student.course.duration}
+          </p>
+
+          <h2 className="mt-4 font-display font-bold text-navy-900">
+            Tuition
+          </h2>
+
+          <p className="mt-2 text-sm text-navy-600">
+            ${student.course.fee.toFixed(0)}
+          </p>
         </div>
       </div>
 
+      {/* My Badges */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-lg font-bold text-navy-900">
+            My Badges
+          </h2>
+
+          <a
+            href="/leaderboard"
+            className="text-sm font-semibold text-rust-500 hover:text-rust-600"
+          >
+            View Leaderboard
+          </a>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {Object.entries(BADGE_INFO).map(([key, info]) => {
+            const earned = earnedKeys.has(key);
+
+            return (
+              <div
+                key={key}
+                className={`card-surface rounded-xl p-4 text-center ${
+                  earned ? "" : "opacity-40 grayscale"
+                }`}
+                title={info.description}
+              >
+                <div className="text-3xl">
+                  {info.icon}
+                </div>
+
+                <h3 className="mt-2 font-display font-bold text-navy-900">
+                  {info.label}
+                </h3>
+
+                <p className="mt-1 text-xs text-navy-600">
+                  {info.description}
+                </p>
+
+                <div className="mt-3 text-xs font-semibold">
+                  {earned ? (
+                    <span className="text-rust-500">
+                      Earned ✓
+                    </span>
+                  ) : (
+                    <span className="text-navy-500">
+                      Not yet earned
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Additional Courses */}
       {extraCourses.length > 0 && (
         <div className="mt-8">
-          <h2 className="font-display font-bold text-navy-900 text-lg">My Enrolled Courses</h2>
-          <p className="mt-1 text-sm text-navy-500">Free online courses you have enrolled in, in addition to your main programme.</p>
+          <h2 className="font-display text-lg font-bold text-navy-900">
+            My Other Courses
+          </h2>
+
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {extraCourses.map((c) => (
-              <a key={c.id} href={`/student/dashboard/lessons/${c.id}`} className="card-surface rounded-xl p-5 hover:border-rust-400 transition-colors block">
-                <p className="font-display font-bold text-navy-900">{c.name}</p>
-                <p className="mt-1 text-xs text-navy-500">{c.category}</p>
-              </a>
+            {extraCourses.map((course) => (
+              <div
+                key={course.id}
+                className="card-surface rounded-xl p-5"
+              >
+                <h3 className="font-display font-bold text-navy-900">
+                  {course.name}
+                </h3>
+
+                <p className="mt-2 text-sm text-navy-600">
+                  {course.duration}
+                </p>
+
+                <a
+                  href={`/student/dashboard/lessons/${course.id}`}
+                  className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600"
+                >
+                  Continue Learning →
+                </a>
+              </div>
             ))}
           </div>
         </div>
       )}
 
+      {/* Certificates */}
       <div className="mt-8">
-        <h2 className="font-display font-bold text-navy-900 text-lg">My Lessons</h2>
-        {student.course.lessons.length === 0 ? (
-          <p className="mt-3 text-sm text-navy-500">No lessons have been published for your programme yet.</p>
-        ) : (
-          <a href={`/student/dashboard/lessons/${student.courseId}`} className="mt-3 inline-block rounded-md bg-rust-500 text-white px-5 py-2.5 text-sm font-semibold hover:bg-rust-400">
-            Go to My Lessons ({student.course.lessons.length})
-          </a>
-        )}
-      </div>
+        <h2 className="font-display text-lg font-bold text-navy-900">
+          My Certificates
+        </h2>
 
-      <div className="mt-8">
-        <h2 className="font-display font-bold text-navy-900 text-lg">My Certificates</h2>
         {student.certificates.length === 0 ? (
-          <p className="mt-3 text-sm text-navy-500">No certificates issued yet, they will appear here once your programme is complete.</p>
+          <div className="card-surface mt-4 rounded-xl p-6">
+            <p className="text-sm text-navy-600">
+              Your certificates will appear here once you complete the
+              required programme requirements.
+            </p>
+          </div>
         ) : (
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            {student.certificates.map((c) => (
-              <div key={c.id} className="card-surface rounded-xl p-6">
-                <p className="font-display font-bold text-navy-900">{c.courseName}</p>
-                <dl className="mt-3 space-y-1 text-sm text-navy-600">
-                  <div>Certificate No: <span className="font-semibold text-navy-900">{c.certificateNo}</span></div>
-                  <div>Verification Code: <span className="font-semibold text-navy-900">{c.verificationCode}</span></div>
-                  <div>Grade: <span className="font-semibold text-navy-900">{c.grade || "-"}</span></div>
-                  <div>Issued: <span className="font-semibold text-navy-900">{new Date(c.issueDate).toLocaleDateString()}</span></div>
-                </dl>
+            {student.certificates.map((certificate) => (
+              <div
+                key={certificate.id}
+                className="card-surface rounded-xl p-5"
+              >
+                <h3 className="font-display font-bold text-navy-900">
+                  Certificate
+                </h3>
+
+                <p className="mt-2 text-sm text-navy-600">
+                  Certificate issued by Gopher Institute Foundation.
+                </p>
               </div>
             ))}
           </div>
