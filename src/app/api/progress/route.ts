@@ -112,8 +112,25 @@ async function awardBadges(studentId: string) {
   }
 }
 
-// Marks a lesson complete for the logged-in student,
-// either directly (no quiz) or after passing a quiz.
+// Award First Step when a student starts their first lesson.
+async function awardFirstStepBadge(studentId: string) {
+  await prisma.studentBadge.upsert({
+    where: {
+      studentId_badgeKey: {
+        studentId,
+        badgeKey: "first-step",
+      },
+    },
+    update: {},
+    create: {
+      studentId,
+      badgeKey: "first-step",
+    },
+  });
+}
+
+// Marks a lesson complete and awards 10 XP once per lesson.
+// Also supports starting a lesson for badge recognition.
 export async function POST(req: NextRequest) {
   const session = getSessionFromCookies();
 
@@ -137,7 +154,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { lessonId, quizAnswers } = await req.json();
+  const { lessonId, quizAnswers, action } = await req.json();
 
   if (!lessonId) {
     return NextResponse.json(
@@ -159,7 +176,33 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Lesson has a quiz
+  // --------------------------------------------------
+  // START LESSON
+  // --------------------------------------------------
+  // Starting a lesson recognizes learner engagement.
+  // It does NOT complete the lesson and does NOT award XP.
+  if (action === "start") {
+    await awardFirstStepBadge(student.id);
+
+    return NextResponse.json({
+      ok: true,
+      badgeAwarded: "first-step",
+    });
+  }
+
+  // Check whether this lesson was already completed.
+  const existingProgress = await prisma.lessonProgress.findUnique({
+    where: {
+      studentId_lessonId: {
+        studentId: student.id,
+        lessonId,
+      },
+    },
+  });
+
+  // --------------------------------------------------
+  // LESSON HAS A QUIZ
+  // --------------------------------------------------
   if (lesson.quizJson) {
     const questions = JSON.parse(lesson.quizJson) as {
       correctIndex: number;
@@ -217,7 +260,21 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Award badges after successful completion
+      // Award 10 XP only the first time this lesson is completed.
+      if (!existingProgress) {
+        await prisma.student.update({
+          where: {
+            id: student.id,
+          },
+          data: {
+            xp: {
+              increment: 10,
+            },
+          },
+        });
+      }
+
+      // Award achievement badges after successful completion.
       await awardBadges(student.id);
     }
 
@@ -225,10 +282,14 @@ export async function POST(req: NextRequest) {
       score,
       total,
       passed,
+      xpAwarded: passed && !existingProgress ? 10 : 0,
     });
   }
 
-  // No quiz — mark lesson complete directly
+  // --------------------------------------------------
+  // LESSON WITHOUT A QUIZ
+  // --------------------------------------------------
+
   await prisma.lessonProgress.upsert({
     where: {
       studentId_lessonId: {
@@ -243,10 +304,25 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Award badges after completing a lesson without a quiz
+  // Award 10 XP only the first time this lesson is completed.
+  if (!existingProgress) {
+    await prisma.student.update({
+      where: {
+        id: student.id,
+      },
+      data: {
+        xp: {
+          increment: 10,
+        },
+      },
+    });
+  }
+
+  // Award achievement badges after completing the lesson.
   await awardBadges(student.id);
 
   return NextResponse.json({
     ok: true,
+    xpAwarded: !existingProgress ? 10 : 0,
   });
 }

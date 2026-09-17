@@ -98,7 +98,7 @@ model Student {
   enrollmentDate DateTime      @default(now())
   graduationDate DateTime?
   createdAt      DateTime      @default(now())
-
+  xp             Int           @default(0)
   certificates Certificate[]
   badges StudentBadge[]
 }

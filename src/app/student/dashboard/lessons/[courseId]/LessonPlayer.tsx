@@ -59,10 +59,21 @@ export default function LessonPlayer({
     lessons: lessons.filter((l) => l.moduleId === m.id),
   }));
 
-  function openLesson(id: string) {
+  async function openLesson(id: string) {
     setActiveId(id);
     setAnswers([]);
     setResult(null);
+
+    await fetch("/api/progress", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lessonId: id,
+        action: "start",
+      }),
+    });
   }
 
   async function markComplete() {
