@@ -5,6 +5,7 @@ const LINKS = [
   { href: "/courses", label: "Programmes" },
   { href: "/apply", label: "Apply Now" },
   { href: "/gallery", label: "Gallery" },
+  { href: "/leaderboard", label: "Leaderboard" },
   { href: "/verify-certificate", label: "Verify Certificate" },
   { href: "/check-registration", label: "Check Registration" },
   { href: "/events", label: "News & Events" },
