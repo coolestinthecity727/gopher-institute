@@ -210,7 +210,15 @@ model LessonProgress {
 
   @@unique([studentId, lessonId])
 }
+model CertificateRequest {
+  id          String   @id @default(cuid())
+  studentId   String
+  courseId    String
+  status      String   @default("PENDING")
+  requestedAt DateTime @default(now())
 
+  @@unique([studentId, courseId])
+}
 model QuizResult {
   id          String   @id @default(cuid())
   studentId   String
