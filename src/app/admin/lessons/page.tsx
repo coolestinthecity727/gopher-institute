@@ -312,7 +312,12 @@ async function uploadDocument(file: File) {
     }
   }} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm" />
   {form.documentUrl && (
-    <a href={form.documentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs">View uploaded PDF</a>
+    <div className="mt-2 flex items-center gap-3">
+      <a href={form.documentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs">View uploaded PDF</a>
+      <button type="button" onClick={() => setForm((current) => ({ ...current, documentUrl: "" }))} className="text-red-600 hover:underline text-xs font-semibold">
+        Remove PDF
+      </button>
+    </div>
   )}
 </div>
           </div>
