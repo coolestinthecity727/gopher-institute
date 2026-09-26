@@ -49,6 +49,7 @@ model Course {
   intake      String? // e.g. "January & July"
   description String
   isActive    Boolean  @default(true)
+  isOnline    Boolean  @default(false)
   createdAt   DateTime @default(now())
 
   applications Application[]
@@ -231,3 +232,5 @@ model QuizResult {
 
   @@unique([studentId, lessonId])
 }
+
+
