@@ -1,4 +1,4 @@
-﻿import { getSessionFromCookies } from "@/lib/auth";
+import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import LessonPlayer from "./LessonPlayer";
@@ -53,7 +53,7 @@ export default async function StudentCourseLessonsPage({ params }: { params: { c
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
       <span className="text-xs font-bold uppercase tracking-wider text-rust-500">Course Lessons</span>
       <h1 className="mt-1 font-display text-3xl font-extrabold text-navy-900">{course?.name}</h1>
-      <LessonPlayer lessons={lessonsForClient} modules={modulesForClient} />
+      <LessonPlayer lessons={lessonsForClient} modules={modulesForClient} courseId={params.courseId} learningMode={student.learningMode} />
     </div>
   );
 }

@@ -29,9 +29,13 @@ type ModuleType = {
 export default function LessonPlayer({
   lessons: initialLessons,
   modules,
+  courseId,
+  learningMode,
 }: {
   lessons: Lesson[];
   modules: ModuleType[];
+  courseId: string;
+  learningMode: string;
 }) {
   const [lessons, setLessons] = useState(initialLessons);
   const [activeId, setActiveId] = useState(initialLessons[0]?.id || "");
@@ -145,6 +149,31 @@ export default function LessonPlayer({
     return `${hours}h ${remainingMinutes}m`;
   }
 
+  async function requestCertificate() {
+    if (learningMode !== "ONLINE" || percent < 100) return;
+
+    setSubmitting(true);
+
+    const res = await fetch("/api/certificate-requests", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        courseId,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Unable to request certificate.");
+    } else {
+      alert("Certificate request submitted successfully.");
+    }
+
+    setSubmitting(false);
+  }
   function getModuleProgress(moduleLessons: Lesson[]) {
     if (moduleLessons.length === 0) {
       return 0;
@@ -225,6 +254,28 @@ export default function LessonPlayer({
           />
         </div>
       </div>
+
+      {learningMode === "ONLINE" && percent === 100 && (
+        <div className="card-surface rounded-xl p-5 mb-6">
+          <h3 className="font-display text-lg font-bold text-navy-900">
+            Programme Complete
+          </h3>
+
+          <p className="mt-2 text-sm text-navy-600">
+            You have completed 100% of this online programme. You can now request your certificate.
+          </p>
+
+          <button
+            onClick={requestCertificate}
+            disabled={submitting}
+            className="mt-4 rounded-md bg-rust-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rust-400 disabled:opacity-50"
+          >
+            {submitting
+              ? "Submitting..."
+              : "Request Online Certificate"}
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
 
@@ -522,4 +573,3 @@ function toEmbedUrl(url: string) {
 
   return url;
 }
-

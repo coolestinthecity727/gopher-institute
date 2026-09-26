@@ -36,6 +36,11 @@ export async function POST(req: NextRequest) {
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
+  await prisma.student.update({
+    where: { id: student.id },
+    data: { learningMode: "ONLINE" },
+  });
+
   const enrollment = await prisma.courseEnrollment.upsert({
     where: { studentId_courseId: { studentId: student.id, courseId } },
     update: {},

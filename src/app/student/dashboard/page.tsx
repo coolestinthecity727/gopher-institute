@@ -9,17 +9,17 @@ const BADGE_INFO: Record<
 > = {
   "first-step": {
     label: "First Step",
-    icon: "🎯",
+    icon: "Ã°Å¸Å½Â¯",
     description: "Completed your first lesson",
   },
   "quiz-master": {
     label: "Quiz Master",
-    icon: "🧠",
+    icon: "Ã°Å¸Â§Â ",
     description: "Passed 5 quizzes",
   },
   "programme-graduate": {
     label: "Programme Graduate",
-    icon: "🎓",
+    icon: "Ã°Å¸Å½â€œ",
     description: "Completed an entire course",
   },
 };
@@ -69,7 +69,9 @@ export default async function StudentDashboardPage() {
     earnedBadges.map((badge) => badge.badgeKey)
   );
 
-  if (!student) {
+  const onlineCertificateRequests = student ? await prisma.certificateRequest.findMany({ where: { studentId: student.id }, orderBy: { requestedAt: "desc" } }) : [];
+
+if (!student) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
         <h1 className="font-display text-2xl font-extrabold text-navy-900">
@@ -223,7 +225,7 @@ export default async function StudentDashboardPage() {
                 <div className="mt-3 text-xs font-semibold">
                   {earned ? (
                     <span className="text-rust-500">
-                      Earned ✓
+                      Earned Ã¢Å“â€œ
                     </span>
                   ) : (
                     <span className="text-navy-500">
@@ -262,10 +264,36 @@ export default async function StudentDashboardPage() {
                   href={`/student/dashboard/lessons/${course.id}`}
                   className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600"
                 >
-                  Continue Learning →
+                  Continue Learning Ã¢â€ â€™
                 </a>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Online Certificates */}
+      {student.learningMode === "ONLINE" && (
+        <div className="mt-8">
+          <h2 className="font-display text-lg font-bold text-navy-900">
+            Online Certificates
+          </h2>
+
+          <div className="card-surface mt-4 rounded-xl p-6">
+            {onlineCertificateRequests.length === 0 ? (
+              <p className="text-sm text-navy-600">
+                Complete 100% of your online course to request your certificate.
+              </p>
+            ) : (
+              <div>
+                <p className="text-sm text-navy-600">
+                  Your online certificate request has been submitted.
+                </p>
+                <p className="mt-2 text-sm font-semibold text-navy-900">
+                  Status: {onlineCertificateRequests[0].status}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
