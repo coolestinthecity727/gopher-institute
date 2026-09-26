@@ -1,4 +1,4 @@
-// Gopher Institute Foundation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â database schema
+// Gopher Institute Foundation ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â database schema
 // SQLite by default for easy local setup. Point DATABASE_URL at Postgres/MySQL for production.
 
 generator client {
@@ -9,6 +9,9 @@ model CourseEnrollment {
   studentId   String
   courseId    String
   enrolledAt  DateTime @default(now())
+  paymentStatus String   @default("UNPAID")
+  amountPaid   Float    @default(0)
+  paidAt       DateTime?
 
   @@unique([studentId, courseId])
 }
@@ -25,7 +28,7 @@ datasource db {
 // These are modeled as plain strings (not Prisma enums) because the default SQLite
 // connector doesn't support native enums. If you switch to Postgres/MySQL in production,
 // you can optionally convert these back to real `enum` blocks for stricter DB-level
-// validation ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the app code already treats them as string literal unions either way.
+// validation ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â the app code already treats them as string literal unions either way.
 
 model User {
   id           String   @id @default(cuid())
@@ -233,6 +236,7 @@ model QuizResult {
 
   @@unique([studentId, lessonId])
 }
+
 
 
 
