@@ -1,9 +1,9 @@
-﻿import { getSessionFromCookies } from "@/lib/auth";
+import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const BADGE_INFO: Record<string, { label: string; icon: string; description: string }> = { "first-step": { label: "First Step", icon: "🎯", description: "Completed your first lesson" }, "quiz-master": { label: "Quiz Master", icon: "🧠", description: "Passed 5 quizzes" }, "programme-graduate": { label: "Programme Graduate", icon: "🎓", description: "Completed an entire course" }, };
+const BADGE_INFO: Record<string, { label: string; icon: string; description: string }> = { "first-step": { label: "First Step", icon: "Ã°Å¸Å½Â¯", description: "Completed your first lesson" }, "quiz-master": { label: "Quiz Master", icon: "Ã°Å¸Â§Â ", description: "Passed 5 quizzes" }, "programme-graduate": { label: "Programme Graduate", icon: "Ã°Å¸Å½â€œ", description: "Completed an entire course" }, };
 
 export default async function StudentDashboardPage() {
   const session = getSessionFromCookies();
@@ -22,6 +22,15 @@ export default async function StudentDashboardPage() {
       certificates: true,
     },
   });
+
+  const onlineEnrollment = student ? await prisma.courseEnrollment.findUnique({
+    where: {
+      studentId_courseId: {
+        studentId: student.id,
+        courseId: student.courseId,
+      },
+    },
+  }) : null;
 
   const extraEnrollments = student
     ? await prisma.courseEnrollment.findMany({
@@ -206,7 +215,7 @@ if (!student) {
                 <div className="mt-3 text-xs font-semibold">
                   {earned ? (
                     <span className="text-rust-500">
-                      Earned ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“
+                      Earned ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“
                     </span>
                   ) : (
                     <span className="text-navy-500">
@@ -245,7 +254,7 @@ if (!student) {
                   href={`/student/dashboard/lessons/${course.id}`}
                   className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600"
                 >
-                  Continue Learning ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
+                  Continue Learning ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢
                 </a>
               </div>
             ))}
@@ -253,6 +262,65 @@ if (!student) {
         </div>
       )}
 
+      {/* Online Tuition */}
+      {student.learningMode === "ONLINE" && onlineEnrollment && (
+        <div className="mt-8">
+          <h2 className="font-display text-lg font-bold text-navy-900">
+            Online Tuition
+          </h2>
+
+          <div className="card-surface mt-4 rounded-xl p-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">
+                  Online Tuition
+                </p>
+                <p className="mt-1 text-xl font-bold text-navy-900">
+                  ${student.course.onlineFee.toFixed(2)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">
+                  Amount Paid
+                </p>
+                <p className="mt-1 text-xl font-bold text-navy-900">
+                  ${onlineEnrollment.amountPaid.toFixed(2)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-navy-500">
+                  Outstanding
+                </p>
+                <p className="mt-1 text-xl font-bold text-navy-900">
+                  ${Math.max(student.course.onlineFee - onlineEnrollment.amountPaid, 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 border-t border-navy-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-navy-600">
+                  Payment Status
+                </p>
+                <p className="mt-1 text-sm font-bold text-navy-900">
+                  {onlineEnrollment.paymentStatus}
+                </p>
+              </div>
+
+              {onlineEnrollment.paymentStatus !== "PAID" && (
+                <a
+                  href="/student/dashboard/tuition"
+                  className="inline-flex items-center justify-center rounded-lg bg-navy-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-800"
+                >
+                  Pay Online Tuition
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Online Certificates */}
       {student.learningMode === "ONLINE" && (
         <div className="mt-8">

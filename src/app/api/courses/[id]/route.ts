@@ -9,6 +9,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
   const body = await req.json();
   if (body.fee !== undefined) body.fee = Number(body.fee) || 0;
+  if (body.onlineFee !== undefined) body.onlineFee = Number(body.onlineFee) || 0;
   const course = await prisma.course.update({ where: { id: params.id }, data: body });
   return NextResponse.json({ course });
 }

@@ -8,12 +8,13 @@ type Course = {
   category: string;
   duration: string;
   fee: number;
+  onlineFee: number;
   intake: string | null;
   description: string;
   isActive: boolean;
 };
 
-const empty = { name: "", category: "", duration: "", fee: "", intake: "", description: "" };
+const empty = { name: "", category: "", duration: "", fee: "", onlineFee: "", intake: "", description: "" };
 
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -34,7 +35,7 @@ export default function AdminCoursesPage() {
 
   function startEdit(c: Course) {
     setEditingId(c.id);
-    setForm({ name: c.name, category: c.category, duration: c.duration, fee: String(c.fee), intake: c.intake || "", description: c.description });
+    setForm({ name: c.name, category: c.category, duration: c.duration, fee: String(c.fee), onlineFee: String(c.onlineFee ?? 0), intake: c.intake || "", description: c.description });
     setShowForm(true);
   }
 
@@ -102,6 +103,10 @@ export default function AdminCoursesPage() {
             <div>
               <label className="block text-xs font-semibold text-navy-600 mb-1">Tuition Fee (USD)</label>
               <input required type="number" min="0" value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-navy-600 mb-1">Online Tuition Fee (USD)</label>
+              <input required type="number" min="0" value={form.onlineFee} onChange={(e) => setForm({ ...form, onlineFee: e.target.value })} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-navy-600 mb-1">Intake Schedule</label>

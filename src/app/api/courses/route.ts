@@ -12,12 +12,12 @@ export async function POST(req: NextRequest) {
   if (!session || !isStaff(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const { name, category, duration, fee, intake, description } = await req.json();
+  const { name, category, duration, fee, onlineFee, intake, description } = await req.json();
   if (!name || !category || !duration || !description) {
     return NextResponse.json({ error: "Name, category, duration and description are required." }, { status: 400 });
   }
   const course = await prisma.course.create({
-    data: { name, category, duration, fee: Number(fee) || 0, intake: intake || null, description },
+    data: { name, category, duration, fee: Number(fee) || 0, onlineFee: Number(onlineFee) || 0, intake: intake || null, description },
   });
   return NextResponse.json({ course }, { status: 201 });
 }
