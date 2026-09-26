@@ -15,6 +15,20 @@ model CourseEnrollment {
 
   @@unique([studentId, courseId])
 }
+model OnlinePayment {
+  id               String   @id @default(cuid())
+  studentId        String
+  courseId         String
+  amount           Float
+  paymentMethod    String
+  paymentReference String
+  status           String   @default("PENDING")
+  submittedAt      DateTime @default(now())
+  verifiedAt       DateTime?
+  verifiedBy       String?
+  notes            String?
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
