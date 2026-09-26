@@ -4,7 +4,7 @@ import path from "path";
 import { nanoid } from "nanoid";
 import { getSessionFromCookies, isStaff } from "@/lib/auth";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "application/pdf"];
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 // NOTE: this stores files on local disk under /public/uploads, which works well on any

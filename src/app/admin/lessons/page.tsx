@@ -40,6 +40,26 @@ export default function AdminLessonsPage() {
   const [moduleForm, setModuleForm] = useState(emptyModule);
 
   const [filterCourse, setFilterCourse] = useState("");
+async function uploadDocument(file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch("/api/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Document upload failed");
+  }
+
+  setForm((current) => ({
+    ...current,
+    documentUrl: data.url,
+  }));
+}
 
   async function load() {
     setLoading(true);
@@ -281,9 +301,20 @@ export default function AdminLessonsPage() {
               <input value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-navy-600 mb-1">Document URL (notes/PDF)</label>
-              <input value={form.documentUrl} onChange={(e) => setForm({ ...form, documentUrl: e.target.value })} placeholder="Paste a link" className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm focus-ring" />
-            </div>
+  <label className="block text-xs font-semibold text-navy-600 mb-1">Lesson Document (PDF)</label>
+  <input type="file" accept="application/pdf" onChange={async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await uploadDocument(file);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Document upload failed");
+    }
+  }} className="w-full rounded-md border border-navy-900/15 px-3 py-2 text-sm" />
+  {form.documentUrl && (
+    <a href={form.documentUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-xs">View uploaded PDF</a>
+  )}
+</div>
           </div>
 
           <div className="border-t border-navy-900/10 pt-4">
@@ -364,3 +395,5 @@ export default function AdminLessonsPage() {
     </div>
   );
 }
+
+
