@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/auth";
 import { Paynow } from "paynow";
@@ -115,6 +115,7 @@ export async function POST(req: NextRequest) {
       amount,
       paymentMethod: "Paynow",
       paymentReference: reference,
+      pollUrl: String(response.pollUrl),
       status: "PENDING",
     },
   });
@@ -126,3 +127,5 @@ export async function POST(req: NextRequest) {
     reference,
   });
 }
+
+

@@ -22,6 +22,7 @@ model OnlinePayment {
   amount           Float
   paymentMethod    String
   paymentReference String
+  pollUrl          String?
   status           String   @default("PENDING")
   submittedAt      DateTime @default(now())
   verifiedAt       DateTime?
@@ -250,6 +251,7 @@ model QuizResult {
 
   @@unique([studentId, lessonId])
 }
+
 
 
 

@@ -1,11 +1,35 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Paynow } from "paynow";
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
+  const rawCallback = await req.text();
 
-  const reference = String(formData.get("reference") || "").trim();
-  const status = String(formData.get("status") || "").trim();
+  const integrationId = Number(process.env.PAYNOW_INTEGRATION_ID);
+  const integrationKey = process.env.PAYNOW_INTEGRATION_KEY;
+
+  if (!integrationId || !integrationKey) {
+    return NextResponse.json(
+      { error: "Paynow integration is not configured." },
+      { status: 500 }
+    );
+  }
+
+  const paynow = new Paynow(integrationId, integrationKey);
+
+  let verifiedCallback;
+
+  try {
+    verifiedCallback = paynow.parseStatusUpdate(rawCallback);
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid Paynow callback." },
+      { status: 400 }
+    );
+  }
+
+  const reference = String(verifiedCallback.reference || "").trim();
+
 
   if (!reference) {
     return NextResponse.json(
@@ -27,7 +51,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (status.toLowerCase() === "paid") {
+  if (!payment.pollUrl) {
+    return NextResponse.json(
+      { error: "Paynow polling URL is missing." },
+      { status: 400 }
+    );
+  }
+
+  const callbackAmount = Number(verifiedCallback.amount);
+
+  if (!Number.isFinite(callbackAmount) || Math.abs(callbackAmount - payment.amount) > 0.01) {
+    return NextResponse.json(
+      { error: "Paynow payment amount does not match." },
+      { status: 400 }
+    );
+  }
+
+  let polledPayment;
+
+  try {
+    polledPayment = await paynow.pollTransaction(String(payment.pollUrl));
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to verify Paynow payment status." },
+      { status: 502 }
+    );
+  }
+
+  const polledStatus = String(polledPayment.status || "").trim().toLowerCase();
+
+  if (polledStatus === "paid") {
     await prisma.$transaction(async (tx) => {
       const currentPayment = await tx.onlinePayment.findUnique({
         where: { id: payment.id },
@@ -82,3 +135,15 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ ok: true });
 }
+
+
+
+
+
+
+
+
+
+
+
+
