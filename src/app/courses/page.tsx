@@ -90,7 +90,7 @@ export default async function CoursesPage() {
                     </Link>
 
                     <Link
-                      href={`/apply?course=${c.id}`}
+                      href={`/online-enroll?course=${c.id}`}
                       className="flex-1 rounded-md bg-rust-500 px-3 py-2 text-center text-sm font-display font-bold text-white hover:bg-rust-400 transition-colors"
                     >
                       Enrol Online
@@ -158,7 +158,7 @@ export default async function CoursesPage() {
                     </Link>
 
                     <Link
-                      href={`/apply?course=${c.id}`}
+                      href={`/online-enroll?course=${c.id}`}
                       className="flex-1 inline-block rounded-md bg-rust-500 px-4 py-2.5 text-center text-sm font-display font-bold text-white hover:bg-rust-400 transition-colors focus-ring"
                     >
                       Apply Now
