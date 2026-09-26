@@ -1,28 +1,9 @@
-import { getSessionFromCookies } from "@/lib/auth";
+﻿import { getSessionFromCookies } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const BADGE_INFO: Record<
-  string,
-  { label: string; icon: string; description: string }
-> = {
-  "first-step": {
-    label: "First Step",
-    icon: "Ã°Å¸Å½Â¯",
-    description: "Completed your first lesson",
-  },
-  "quiz-master": {
-    label: "Quiz Master",
-    icon: "Ã°Å¸Â§Â ",
-    description: "Passed 5 quizzes",
-  },
-  "programme-graduate": {
-    label: "Programme Graduate",
-    icon: "Ã°Å¸Å½â€œ",
-    description: "Completed an entire course",
-  },
-};
+const BADGE_INFO: Record<string, { label: string; icon: string; description: string }> = { "first-step": { label: "First Step", icon: "🎯", description: "Completed your first lesson" }, "quiz-master": { label: "Quiz Master", icon: "🧠", description: "Passed 5 quizzes" }, "programme-graduate": { label: "Programme Graduate", icon: "🎓", description: "Completed an entire course" }, };
 
 export default async function StudentDashboardPage() {
   const session = getSessionFromCookies();
@@ -225,7 +206,7 @@ if (!student) {
                 <div className="mt-3 text-xs font-semibold">
                   {earned ? (
                     <span className="text-rust-500">
-                      Earned Ã¢Å“â€œ
+                      Earned ÃƒÂ¢Ã…â€œÃ¢â‚¬Å“
                     </span>
                   ) : (
                     <span className="text-navy-500">
@@ -264,7 +245,7 @@ if (!student) {
                   href={`/student/dashboard/lessons/${course.id}`}
                   className="mt-4 inline-block text-sm font-semibold text-rust-500 hover:text-rust-600"
                 >
-                  Continue Learning Ã¢â€ â€™
+                  Continue Learning ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢
                 </a>
               </div>
             ))}
@@ -333,3 +314,4 @@ if (!student) {
     </div>
   );
 }
+
