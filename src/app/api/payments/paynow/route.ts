@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionFromCookies } from "@/lib/auth";
 import { Paynow } from "paynow";
@@ -57,7 +57,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
+  let body: { amount?: unknown };
+
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid payment request." },
+      { status: 400 }
+    );
+  }
+
   const amount = Number(body.amount);
 
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -78,7 +88,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const integrationId = Number(process.env.PAYNOW_INTEGRATION_ID);
+  const integrationId = process.env.PAYNOW_INTEGRATION_ID;
   const integrationKey = process.env.PAYNOW_INTEGRATION_KEY;
 
   if (!integrationId || !integrationKey) {
@@ -88,22 +98,38 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const paynow = new Paynow(integrationId, integrationKey);
-
-  paynow.resultUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/payments/paynow/result`;
-  paynow.returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/student/dashboard/tuition`;
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
   const reference = `GIF-${student.studentNumber}-${Date.now()}`;
 
-  const payment = paynow.createPayment(reference, student.email);
+  const paynow = new Paynow(Number(integrationId), integrationKey);
 
-  payment.add(`Gopher Institute - ${student.course.name}`, amount);
+  paynow.resultUrl = `${appUrl}/api/payments/paynow/result`;
+  paynow.returnUrl = `${appUrl}/student/dashboard/tuition`;
 
-  const response = await paynow.send(payment);
+  const payment = paynow.createPayment(reference, "");
+  payment.add(
+    `Gopher Institute - ${student.course.name}`,
+    Number(amount.toFixed(2))
+  );
 
-  if (!response.success) {
+  let response;
+
+  try {
+    response = await paynow.send(payment);
+  } catch {
     return NextResponse.json(
-      { error: response.error || "Unable to create Paynow payment." },
+      { error: "Unable to connect to Paynow." },
+      { status: 502 }
+    );
+  }
+
+  if (!response.success || !response.redirectUrl || !response.pollUrl) {
+    return NextResponse.json(
+      {
+        error: response.error || "Unable to create Paynow payment.",
+      },
       { status: 502 }
     );
   }
@@ -115,7 +141,7 @@ export async function POST(req: NextRequest) {
       amount,
       paymentMethod: "Paynow",
       paymentReference: reference,
-      pollUrl: String(response.pollUrl),
+      pollUrl: response.pollUrl,
       status: "PENDING",
     },
   });
@@ -127,5 +153,3 @@ export async function POST(req: NextRequest) {
     reference,
   });
 }
-
-
