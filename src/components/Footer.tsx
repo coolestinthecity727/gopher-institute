@@ -41,7 +41,6 @@ export default function Footer() {
           <h3 className="font-display font-semibold text-white text-sm uppercase tracking-wide">Contact</h3>
           <ul className="mt-3 space-y-2 text-sm text-navy-300">
             <li>Pelandaba, White City, Bulawayo, Zimbabwe</li>
-            <li>Hermco Building, Office 63, 6th Avenue &amp; Main Street (opposite Unity Village), Bulawayo</li>
             <li>Landline: +263 (292) 401396</li>
             <li>WhatsApp: +263 779 678 700</li>
             <li>admin@gopherinstitutefoundation.co.zw</li>
